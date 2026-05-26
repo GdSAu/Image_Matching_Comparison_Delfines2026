@@ -1,0 +1,26 @@
+# ============================================================
+# Tutorial: Image Matching con ALIKED + LightGlue
+# ============================================================
+# Instalar con:
+#   pip install -r requirements.txt
+#
+# IMPORTANTE — PyTorch va aparte (ver INSTALL.md):
+#   El comando de instalación de PyTorch depende de si tienes GPU (CUDA)
+#   o solo CPU. No instales PyTorch desde este archivo directamente.
+# ============================================================
+
+# Visión computacional diferenciable sobre PyTorch.
+# Incluye ALIKED, LightGlue y utilidades de preprocesamiento.
+kornia>=0.7.3
+
+# Lectura/escritura de imágenes, conversión de color, RANSAC.
+opencv-python>=4.8.0
+
+# Interfaz web para la demo interactiva.
+gradio>=4.0.0
+
+# Visualización de imágenes en notebooks y scripts.
+matplotlib>=3.7.0
+
+# Operaciones matriciales, requerido por OpenCV y Kornia.
+numpy>=1.24.0
