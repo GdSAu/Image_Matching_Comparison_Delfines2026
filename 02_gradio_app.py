@@ -28,9 +28,6 @@ Requisitos:
     pip install torch kornia opencv-python gradio numpy
 """
 
-import tempfile
-from pathlib import Path
-
 import cv2
 import gradio as gr
 import numpy as np
@@ -73,12 +70,13 @@ else:
     DISPOSITIVO = torch.device("cpu")
     print("  CPU (la inferencia será más lenta)")
 
-ALIKED = KF.ALIKED(
+ALIKED = KF.ALIKED.from_pretrained(
     model_name="aliked-n16rot",
     max_num_keypoints=MAX_KEYPOINTS,
     detection_threshold=UMBRAL_DETECCION,
     nms_radius=RADIO_NMS,
-).eval().to(DISPOSITIVO)
+    device=DISPOSITIVO,
+)
 
 LIGHTGLUE = KF.LightGlue("aliked").eval().to(DISPOSITIVO)
 
@@ -127,22 +125,33 @@ def extraer_y_emparejar(img0_bgr: np.ndarray, img1_bgr: np.ndarray):
     hw1 = t1.shape[-2:]
 
     with torch.inference_mode():
-        feats0 = ALIKED({"image": t0})
-        feats1 = ALIKED({"image": t1})
+        feats0 = ALIKED(t0)[0]
+        feats1 = ALIKED(t1)[0]
 
-        feats0["image_size"] = torch.tensor([hw0], device=DISPOSITIVO)
-        feats1["image_size"] = torch.tensor([hw1], device=DISPOSITIVO)
-
-        pred = LIGHTGLUE({"image0": feats0, "image1": feats1})
+        H0, W0 = hw0
+        H1, W1 = hw1
+        data = {
+            "image0": {
+                "keypoints":   feats0.keypoints.unsqueeze(0),
+                "descriptors": feats0.descriptors.unsqueeze(0),
+                "image_size":  torch.tensor([[W0, H0]], device=DISPOSITIVO, dtype=torch.float),
+            },
+            "image1": {
+                "keypoints":   feats1.keypoints.unsqueeze(0),
+                "descriptors": feats1.descriptors.unsqueeze(0),
+                "image_size":  torch.tensor([[W1, H1]], device=DISPOSITIVO, dtype=torch.float),
+            },
+        }
+        pred = LIGHTGLUE(data)
 
     matches = pred["matches0"][0]
     validos  = matches > -1
 
-    mkpts0 = feats0["keypoints"][0][validos].cpu().numpy()
-    mkpts1 = feats1["keypoints"][0][matches[validos]].cpu().numpy()
+    mkpts0 = feats0.keypoints[validos].cpu().numpy()
+    mkpts1 = feats1.keypoints[matches[validos]].cpu().numpy()
 
-    n_kpts0 = feats0["keypoints"].shape[1]
-    n_kpts1 = feats1["keypoints"].shape[1]
+    n_kpts0 = feats0.n
+    n_kpts1 = feats1.n
 
     return mkpts0, mkpts1, n_kpts0, n_kpts1
 
@@ -339,5 +348,5 @@ if __name__ == "__main__":
     demo.launch(
         server_name="0.0.0.0",  # escucha en todas las interfaces de red
         server_port=7860,
-        # share=True,            # descomenta para obtener un enlace público temporal
+        #share=True,            # descomenta para obtener un enlace público temporal
     )

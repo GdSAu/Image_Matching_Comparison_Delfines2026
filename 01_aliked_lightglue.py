@@ -184,15 +184,18 @@ def cargar_modelos(dispositivo: torch.device) -> tuple:
     LightGlue — se inicializa indicándole qué tipo de descriptores recibirá
     ("aliked", "superpoint", "disk", etc.) para usar los pesos correctos.
     """
-    print("  Cargando ALIKED...")
-    aliked = KF.ALIKED(
+    print("  Cargando ALIKED (descargando pesos si es la primera vez)...")
+    # IMPORTANTE: usar from_pretrained(), NO el constructor directo ALIKED().
+    # El constructor solo crea la arquitectura con pesos aleatorios;
+    # from_pretrained() descarga el checkpoint oficial y los carga.
+    # También llama internamente a .eval() y .to(device).
+    aliked = KF.ALIKED.from_pretrained(
         model_name="aliked-n16rot",
         max_num_keypoints=MAX_KEYPOINTS,
         detection_threshold=UMBRAL_DETECCION,
         nms_radius=RADIO_NMS,
-    ).eval().to(dispositivo)
-    # .eval() desactiva el modo de entrenamiento (desactiva dropout, batch norm, etc.)
-    # Siempre llamar .eval() antes de inferencia.
+        device=dispositivo,
+    )
 
     print("  Cargando LightGlue (aliked)...")
     lightglue = KF.LightGlue("aliked").eval().to(dispositivo)
@@ -203,15 +206,16 @@ def cargar_modelos(dispositivo: torch.device) -> tuple:
 def extraer_caracteristicas(
     aliked: KF.ALIKED,
     tensor_gris: torch.Tensor,
-) -> dict:
+):
     """
     Extrae keypoints y descriptores de una imagen usando ALIKED.
 
-    Qué devuelve ALIKED (dict con las claves):
-        "keypoints"        : (1, N, 2) — coordenadas (x, y) en píxeles de cada punto
-        "descriptors"      : (1, N, 128) — vector de 128 números que describe la región
-                             local alrededor de cada keypoint
-        "keypoint_scores"  : (1, N) — confianza de detección de cada keypoint
+    Qué devuelve ALIKED — un objeto ALIKEDFeatures con los atributos:
+        .keypoints       : (N, 2) — coordenadas (x, y) en píxeles de cada punto
+        .descriptors     : (N, 128) — vector de 128 números que describe la región
+                           local alrededor de cada keypoint
+        .keypoint_scores : (N,) — confianza de detección de cada keypoint
+        .n               : número total de keypoints detectados
 
     N es el número de keypoints detectados (hasta MAX_KEYPOINTS).
 
@@ -224,14 +228,18 @@ def extraer_caracteristicas(
         # torch.inference_mode() le dice a PyTorch que no necesita guardar
         # el grafo de computación (no vamos a hacer backpropagation).
         # Esto reduce el uso de memoria y acelera la inferencia.
-        caracteristicas = aliked({"image": tensor_gris})
-    return caracteristicas
+        #
+        # ALIKED recibe el tensor directamente (B, 1 o 3, H, W) y devuelve
+        # una lista de ALIKEDFeatures, una por imagen del batch.
+        # Como procesamos de una en una (B=1), tomamos el índice [0].
+        resultados = aliked(tensor_gris)
+    return resultados[0]
 
 
 def emparejar(
     lightglue: KF.LightGlue,
-    feats0: dict,
-    feats1: dict,
+    feats0,
+    feats1,
     hw0: tuple[int, int],
     hw1: tuple[int, int],
     dispositivo: torch.device,
@@ -254,24 +262,39 @@ def emparejar(
         todos los puntos simultáneamente y aprende a rechazar puntos ambiguos
         (p.ej. texturas repetitivas), reduciendo drásticamente los falsos positivos.
     """
-    # LightGlue necesita saber el tamaño de cada imagen para normalizar
-    # internamente las coordenadas de los keypoints.
-    feats0["image_size"] = torch.tensor([hw0], device=dispositivo)  # (1, 2)
-    feats1["image_size"] = torch.tensor([hw1], device=dispositivo)
+    H0, W0 = hw0
+    H1, W1 = hw1
+
+    # LightGlue espera un dict con "image0" e "image1", cada uno conteniendo:
+    #   "keypoints"   : (B, N, 2) — se añade dimensión de batch con .unsqueeze(0)
+    #   "descriptors" : (B, N, D)
+    #   "image_size"  : (B, 2) en formato [W, H] (ancho, alto) para normalizar coords
+    #
+    # Los keypoints de ALIKED vienen en coords de píxel [x, y] sin dimensión de batch.
+    # LightGlue los normaliza internamente a [-1, 1] usando image_size.
+    data = {
+        "image0": {
+            "keypoints":   feats0.keypoints.unsqueeze(0),    # (1, N, 2)
+            "descriptors": feats0.descriptors.unsqueeze(0),  # (1, N, D)
+            "image_size":  torch.tensor([[W0, H0]], device=dispositivo, dtype=torch.float),
+        },
+        "image1": {
+            "keypoints":   feats1.keypoints.unsqueeze(0),
+            "descriptors": feats1.descriptors.unsqueeze(0),
+            "image_size":  torch.tensor([[W1, H1]], device=dispositivo, dtype=torch.float),
+        },
+    }
 
     with torch.inference_mode():
-        pred = lightglue({"image0": feats0, "image1": feats1})
+        pred = lightglue(data)
 
     # pred["matches0"]: para cada keypoint de la imagen 0, el índice del
     # keypoint correspondiente en la imagen 1, o -1 si no tiene pareja.
-    matches = pred["matches0"][0]        # (N,)
-    validos = matches > -1               # máscara booleana de puntos emparejados
+    matches = pred["matches0"][0]   # (N,)
+    validos = matches > -1          # máscara booleana de puntos emparejados
 
-    kpts0_todos = feats0["keypoints"][0]             # (N, 2)
-    kpts1_todos = feats1["keypoints"][0]             # (M, 2)
-
-    mkpts0 = kpts0_todos[validos].cpu().numpy()      # keypoints con pareja en img0
-    mkpts1 = kpts1_todos[matches[validos]].cpu().numpy()  # sus correspondientes en img1
+    mkpts0 = feats0.keypoints[validos].cpu().numpy()
+    mkpts1 = feats1.keypoints[matches[validos]].cpu().numpy()
 
     return mkpts0, mkpts1
 
@@ -336,7 +359,6 @@ def visualizar_correspondencias(
     mkpts1: np.ndarray,
     mkpts0_all: np.ndarray | None = None,
     mkpts1_all: np.ndarray | None = None,
-    titulo: str = "Correspondencias",
 ) -> np.ndarray:
     """
     Crea una imagen compuesta que muestra las dos imágenes lado a lado
@@ -439,8 +461,8 @@ def ejecutar_pipeline(
     feats0 = extraer_caracteristicas(aliked, tensor0)
     feats1 = extraer_caracteristicas(aliked, tensor1)
 
-    n_kpts0 = feats0["keypoints"].shape[1]
-    n_kpts1 = feats1["keypoints"].shape[1]
+    n_kpts0 = feats0.n
+    n_kpts1 = feats1.n
     print(f"  Keypoints detectados — Imagen 0: {n_kpts0}, Imagen 1: {n_kpts1}")
 
     # Emparejamiento con LightGlue
@@ -467,7 +489,6 @@ def ejecutar_pipeline(
         mkpts0_in, mkpts1_in,
         mkpts0_all=outliers_0,
         mkpts1_all=outliers_1,
-        titulo="ALIKED + LightGlue",
     )
 
     if ruta_salida:
