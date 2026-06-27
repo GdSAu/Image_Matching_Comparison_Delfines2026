@@ -44,4 +44,4 @@ venv.bak/
 
 # Project-Specific
 datasets/
-results/
+outputs/
