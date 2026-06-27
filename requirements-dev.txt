@@ -1,0 +1,6 @@
+# Linting and Formating
+black
+
+pytest
+
+pre-commit

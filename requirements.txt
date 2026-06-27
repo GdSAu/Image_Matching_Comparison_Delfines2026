@@ -12,6 +12,10 @@
 # Visión computacional diferenciable sobre PyTorch.
 # Incluye ALIKED, LightGlue y utilidades de preprocesamiento.
 kornia>=0.7.3
+<<<<<<< HEAD
+=======
+kornia-moons==0.2.9
+>>>>>>> e554e9a (feat: estructura inicial del proyecto)
 
 # Lectura/escritura de imágenes, conversión de color, RANSAC.
 opencv-python>=4.8.0
