@@ -6,16 +6,16 @@ Este documento describe el entorno de referencia, procedimientos de benchmarking
 
 # Propósito
 
-The objective of this guide is to make every benchmark reproducible by documenting:
+El objetivo de esta guía es hacer cada benchmark reproducible al documentar:
 
-* software versions
-* hardware specifications
-* datasets
-* benchmark configurations
-* execution commands
-* evaluation metrics
+* Versiones de Software
+* Especificaciones de Hardware 
+* Datasets
+* Configurations de Benchmarks
+* Comandos de ejecución
+* Métricas de Evaluación
 
-Whenever benchmark results are reported in the repository, they should be reproducible using the information provided here.
+Cuando los resultados de alguna benchmark sean reportados en el repositorio, estos deben de ser reproducibles usando la información proveída en este documento.
 
 ---
 
@@ -31,16 +31,6 @@ Otros sistemas operativos pueden funcionar pero no san sido validados oficialmen
 
 ---
 
-## Python
-
-Versión de referencia:
-
-```text
-Python X.Y.Z
-```
-
----
-
 ## Dependencias Principales
 
 Documenta las versiones de las dependencias principales usadas durante el benchmarking.
@@ -49,11 +39,9 @@ Documenta las versiones de las dependencias principales usadas durante el benchm
 | ----------- | ------- |
 | Python      | 3.14.4 |
 | PyTorch     | 2.12.1+cu132 |
-| Torchvision |         |
 | OpenCV      | 4.13.0 |
 | NumPy       | 2.4.4 |
 | Kornia      | 0.8.3 |
-| LightGlue   |         |
 
 Las versiones exactas de los paquetes siempre deben estar disponibles en `requirements-lock.txt`.
 
@@ -70,17 +58,17 @@ Las versiones exactas de los paquetes siempre deben estar disponibles en `requir
 
 ---
 
-# Dataset Preparation
+# Preparación de Datasets
 
-For every supported dataset, document:
+Para cada dataset usado, documenta:
 
-* dataset source
-* version
-* download instructions
-* extraction location
-* expected directory structure
+* Origen del dataset
+* Versión
+* Instrucciones de Descarga
+* Ubicación de Extracción
+* Estructura del Directorio Esperada
 
-Example:
+Ejemplo:
 
 ```text
 data/
@@ -89,121 +77,94 @@ data/
         megadepth/
 ```
 
-Whenever possible, benchmark datasets should remain unchanged after download.
+Siempre que sea posible, los datasets de benchmark deben permanecer sin cambios después de la descarga.
 
 ---
 
-# Benchmark Configuration
+# Configuración del Benchmark
 
-Every benchmark should be reproducible using a configuration file.
+Cada benchmark debe ser reproducible usando un archivo de configuración.
 
-Configurations should define all experiment parameters, including:
+Las configuraciones definen todos los parámetros de los experimentos, incluyendo:
 
-* extractor
-* matcher
-* detector thresholds
-* image resolution
-* geometric verification
-* evaluation metrics
+* Extractor
+* Emparejador
+* Márgenes del Detector
+* Resolución de Imagen
+* Métricas de Evaluación
 
-Avoid modifying Python source code to change benchmark parameters.
+No modifiques directamente el código fuente para cambiar los parámetros de un benchmark. Hazlo mediante los archivos de configuración.
 
 ---
 
-# Running Benchmarks
+# Ejecutar Benchmarks
 
-Document the commands required to reproduce each experiment.
+Documenta los comandos requeridos para reproducir cada experimento.
 
-Example:
+Ejemplo:
 
 ```bash
 python scripts/benchmark.py \
     --config configs/lightglue.yaml
 ```
 
-If multiple benchmark configurations exist, provide an example command for each.
+Si existen múltiples configuraciones, provee un comando ejemplo para cada una.
 
 ---
 
-# Randomness
+# Estrucutra de las Salidas
 
-Whenever randomness is involved, document:
+Las salidas de un benchmark deben ser almacenadas en el directorio 'outputs' del repositorio.
 
-* random seed
-* NumPy seed
-* PyTorch seed
-* deterministic settings (if enabled)
-
-If experiments are deterministic by design, explicitly state so.
-
----
-
-# Output Structure
-
-Benchmark outputs should be stored in the repository's output directory.
-
-Example:
+Por ejemplo:
 
 ```text
 outputs/
+    images/
     metrics/
     matches/
     figures/
     logs/
 ```
 
-Generated files should never be committed unless they are intended as example outputs.
+Los archivos de salida no deben ser guardados en una commit a menos que sean salidas de ejemplo.
 
 ---
 
-# Reporting Results
+# Reportar Resultados
 
-Benchmark reports should include, at minimum:
+Cada reporte de benchmark debe incluir:
 
-* benchmark date
-* Git commit hash
-* dataset
-* configuration
-* hardware
-* runtime
-* evaluation metrics
+* Fecha de realización
+* Hash del commit de Git
+* Dataset usado
+* Configuración
+* Métricas resultantes
 
-Example:
+Por ejemplo:
 
-| Field             | Value |
+| Campo             | Valor |
 | ----------------- | ----- |
+| Fecha             |       |
 | Commit            |       |
 | Dataset           |       |
 | Configuration     |       |
-| Runtime           |       |
-| Matching Accuracy |       |
 | Precision         |       |
 | Recall            |       |
+| Inlier Ratio      |       |
+| mAA               |       |
+| Tiempo            |       |
 
-Including the commit hash allows benchmark results to be traced back to the exact version of the source code.
-
----
-
-# Reproducibility Checklist
-
-Before publishing benchmark results, verify that:
-
-* [ ] The benchmark was executed from a configuration file.
-* [ ] All datasets match the documented versions.
-* [ ] The software environment is documented.
-* [ ] Hardware information is recorded.
-* [ ] Commands used to run the benchmark are documented.
-* [ ] Output metrics were generated automatically.
-* [ ] Results can be reproduced from a clean repository clone.
+Incluir el hash del commit permite que los resultados de cada benchmark sean rastreados a la versión exacta del código fuente usado.
 
 ---
 
-# Future Improvements
+# Checklist de Reproducibilidad
 
-As the project evolves, this guide should be updated to include:
+Antes de publicar los resultados de un benchmark, confirma que:
 
-* additional datasets
-* new benchmark protocols
-* updated hardware references
-* new evaluation metrics
-* reproducibility notes for new algorithms
+* [ ] La benchmark se ejecutó usando un archivo de configuración.
+* [ ] Los datasets usados están bien documentados.
+* [ ] Los comandos usados fueron documentados.
+* [ ] Las salidas fueron generados automáticamente.
+* [ ] Los resultados pueden ser reproducidos en un repositorio limpio clonado.
