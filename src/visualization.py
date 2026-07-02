@@ -1,6 +1,6 @@
-import matplotlib.pyplot as plt
 import kornia as K
 import kornia.feature as KF
+import matplotlib.pyplot as plt
 from kornia_moons.viz import draw_LAF_matches
 
 
@@ -34,16 +34,13 @@ def visualize_matches(
 
     plt.show()
 
+
 def visualize_keypoints(image, keypoints, output_path=None):
     fig, ax = plt.subplots(figsize=(10, 10))
 
     ax.imshow(K.tensor_to_image(image.cpu()))
 
-    ax.scatter(
-        keypoints[:, 0].cpu(),
-        keypoints[:, 1].cpu(),
-        s=2
-    )
+    ax.scatter(keypoints[:, 0].cpu(), keypoints[:, 1].cpu(), s=2)
 
     ax.set_axis_off()
 

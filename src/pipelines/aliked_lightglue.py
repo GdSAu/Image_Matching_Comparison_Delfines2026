@@ -1,9 +1,8 @@
-import torch
 import kornia.feature as KF
+import torch
 
 
 class AlikedLightGlue:
-
     def __init__(
         self,
         device,
@@ -25,11 +24,7 @@ class AlikedLightGlue:
             device=device,
         )
 
-        self.matcher = (
-            KF.LightGlue("aliked")
-            .eval()
-            .to(device)
-        )
+        self.matcher = KF.LightGlue("aliked").eval().to(device)
 
     @torch.inference_mode()
     def run(

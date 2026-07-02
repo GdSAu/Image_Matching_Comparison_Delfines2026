@@ -1,9 +1,8 @@
-import torch
 import kornia.feature as KF
+import torch
 
 
 class DiskLightGlue:
-
     def __init__(
         self,
         device,
@@ -16,17 +15,9 @@ class DiskLightGlue:
         # Temporary workaround for the cuDNN bug
         torch.backends.cudnn.enabled = False
 
-        self.extractor = (
-            KF.DISK
-            .from_pretrained("depth")
-            .to(device)
-        )
+        self.extractor = KF.DISK.from_pretrained("depth").to(device)
 
-        self.matcher = (
-            KF.LightGlue("disk")
-            .eval()
-            .to(device)
-        )
+        self.matcher = KF.LightGlue("disk").eval().to(device)
 
     @torch.inference_mode()
     def run(

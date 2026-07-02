@@ -1,12 +1,10 @@
 import cv2
-import torch
-import numpy as np
-
 import kornia.feature as KF
+import numpy as np
+import torch
 
 
 class SiftLightGlue:
-
     def __init__(
         self,
         device="cuda",
@@ -20,11 +18,7 @@ class SiftLightGlue:
             nfeatures=max_keypoints,
         )
 
-        self.matcher = (
-            KF.LightGlue("sift")
-            .eval()
-            .to(device)
-        )
+        self.matcher = KF.LightGlue("sift").eval().to(device)
 
         print("Loaded LightGlue model")
 
@@ -39,19 +33,9 @@ class SiftLightGlue:
         # Convert tensors to uint8 grayscale for OpenCV SIFT
         # ---------------------------------------------------------
 
-        img0_np = (
-            img0.squeeze(0)
-            .permute(1, 2, 0)
-            .cpu()
-            .numpy()
-        )
+        img0_np = img0.squeeze(0).permute(1, 2, 0).cpu().numpy()
 
-        img1_np = (
-            img1.squeeze(0)
-            .permute(1, 2, 0)
-            .cpu()
-            .numpy()
-        )
+        img1_np = img1.squeeze(0).permute(1, 2, 0).cpu().numpy()
 
         img0_np = (img0_np * 255).astype(np.uint8)
         img1_np = (img1_np * 255).astype(np.uint8)
@@ -80,15 +64,8 @@ class SiftLightGlue:
             None,
         )
 
-        if (
-            desc0 is None
-            or desc1 is None
-            or len(kps0) == 0
-            or len(kps1) == 0
-        ):
-            raise RuntimeError(
-                "SIFT failed to detect enough features."
-            )
+        if desc0 is None or desc1 is None or len(kps0) == 0 or len(kps1) == 0:
+            raise RuntimeError("SIFT failed to detect enough features.")
 
         keypoints0 = torch.tensor(
             [[kp.pt[0], kp.pt[1]] for kp in kps0],
@@ -175,23 +152,14 @@ class SiftLightGlue:
 
         matches = prediction["matches"][0]
 
-        matched0 = keypoints0[
-            matches[:, 0]
-        ]
+        matched0 = keypoints0[matches[:, 0]]
 
-        matched1 = keypoints1[
-            matches[:, 1]
-        ]
+        matched1 = keypoints1[matches[:, 1]]
 
         return {
-
             "keypoints0": keypoints0,
-
             "keypoints1": keypoints1,
-
             "matches": matches,
-
             "matched0": matched0,
-
             "matched1": matched1,
         }

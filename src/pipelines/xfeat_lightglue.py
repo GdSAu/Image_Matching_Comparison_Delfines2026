@@ -5,7 +5,6 @@ import cv2
 import numpy as np
 import torch
 
-
 # ---------------------------------------------------------------------
 # Make the cloned repository importable
 # ---------------------------------------------------------------------
@@ -21,7 +20,6 @@ from modules.xfeat import XFeat
 
 
 class XFeatLightGlue:
-
     def __init__(
         self,
         device="cuda",
@@ -30,7 +28,7 @@ class XFeatLightGlue:
 
         self.device = device
         self.top_k = top_k
-        
+
         # Temporary workaround for the cuDNN bug
         torch.backends.cudnn.enabled = False
 
@@ -53,8 +51,8 @@ class XFeatLightGlue:
         feats1 = self.model.detectAndCompute(img1)[0]
 
         feats0["image_size"] = (
-            img0.shape[-1],   # width
-            img0.shape[-2],   # height
+            img0.shape[-1],  # width
+            img0.shape[-2],  # height
         )
 
         feats1["image_size"] = (
@@ -76,7 +74,6 @@ class XFeatLightGlue:
         # --------------------------------------------------------------
 
         if len(mkpts0) >= 8:
-
             _, mask = cv2.findFundamentalMat(
                 mkpts0,
                 mkpts1,
@@ -92,18 +89,13 @@ class XFeatLightGlue:
                 inliers = mask.ravel().astype(bool)
 
         else:
-
             inliers = np.ones(len(mkpts0), dtype=bool)
 
         return {
-
             "features0": feats0,
             "features1": feats1,
-
             "matches": matches,
-
             "matched0": torch.from_numpy(mkpts0).to(self.device),
             "matched1": torch.from_numpy(mkpts1).to(self.device),
-
             "inliers": inliers,
         }
