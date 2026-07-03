@@ -45,3 +45,4 @@ venv.bak/
 # Project-Specific
 datasets/
 outputs/
+src/models/
