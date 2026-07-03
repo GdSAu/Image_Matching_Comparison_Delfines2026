@@ -160,7 +160,7 @@ ruff format .
 pytest
 ```
 
-Todas las pruebas deben completearse exitosamente antes de abrir una Pull Request.
+Todas las pruebas deben completarse exitosamente antes de abrir una Pull Request.
 
 ---
 

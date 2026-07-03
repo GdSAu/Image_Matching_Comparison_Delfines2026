@@ -51,7 +51,7 @@ Actualmente el proyecto contempla soporte para métodos como:
 ```text
 .
 ├── configs/
-├── data/
+├── datasets/
 ├── docs/
 ├── outputs/
 ├── scripts/
@@ -71,14 +71,14 @@ Actualmente el proyecto contempla soporte para métodos como:
 La arquitectura completa del proyecto puede consultarse en:
 
 ```text
-docs/architecture.md
+docs/arquitectura.md
 ```
 
 ---
 
 ## Instalación
 
-Para la instalación revisa el archivo `INSTALL-md`.
+Para la instalación revisa el archivo `INSTALL.md`.
 
 ---
 
@@ -98,7 +98,7 @@ La documentación del proyecto se encuentra en la carpeta `docs`.
 
 * `arquitectura.md` — Arquitectura del framework.
 * `reproducibilidad.md` — Guía para reproducir benchmarks.
-* `benchmarking.md` — Procedimientos de evaluación.
+* `benchmarks.md` — Procedimientos de evaluación.
 * `datasets.md` — Datasets soportados.
 
 ---

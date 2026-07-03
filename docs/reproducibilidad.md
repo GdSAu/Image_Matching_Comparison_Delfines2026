@@ -27,7 +27,7 @@ Plataforma de referencia:
 
 * Ubuntu 26.04 LTS
 
-Otros sistemas operativos pueden funcionar pero no san sido validados oficialmente.
+Otros sistemas operativos pueden funcionar pero no han sido validados oficialmente.
 
 ---
 
@@ -112,7 +112,7 @@ Si existen múltiples configuraciones, provee un comando ejemplo para cada una.
 
 ---
 
-# Estrucutra de las Salidas
+# Estructura de las Salidas
 
 Las salidas de un benchmark deben ser almacenadas en el directorio 'outputs' del repositorio.
 

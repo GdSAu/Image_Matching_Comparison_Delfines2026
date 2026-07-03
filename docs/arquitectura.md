@@ -12,7 +12,7 @@ El framework provee un entorno común para:
 
 * Ejecutar pipelines de emparejamiento de imágenes
 * Benchamarking de distintos métodos
-* Evaluar precisió geométrica
+* Evaluar precisión geométrica
 * Visualizar resultados cualitativos y cuantitativos
 * Interactuar con el framework a través de una interfaz de Gradio
 
@@ -42,7 +42,7 @@ Cada uno de estos métodos es tratado como una pipeline completa, independientem
 
 ## Separación de Problemas
 
-Cada módulo debe tener una responsabilidad específicas:
+Cada módulo debe tener una responsabilidad específica:
 
 El framework para el benchmarking no debe contener lógica del emparejamiento de imágenes.
 
@@ -71,13 +71,13 @@ Código de benchmarking existente no debería requerir modificación.
 
 ## Configuración sobre Hard-Codeo
 
-Los parámetros del benchmark deben ser definidos mediante archivos de configuración siempre que sea posbile. Esto incluye:
+Los parámetros del benchmark deben ser definidos mediante archivos de configuración siempre que sea posible. Esto incluye:
 
 * Pipeline seleccionada
 * Dataset usado
 * Métricas de evaluación
 * Opciones de visualización
-* Parámteros de verificación geométrica
+* Parámetros de verificación geométrica
 
 Cambiar un experimento no debe requerir modificar el código fuente.
 
@@ -87,14 +87,13 @@ Cambiar un experimento no debe requerir modificar el código fuente.
 
 Todas las benchmarks deben ser reproducibles.
 
-La confguración de benchmarking, datasets, versiones de software y hadware y los comandos de ejcución deben ser documentados y controlados por versión.
-Benchmark configurations, datasets, software versions, and execution commands should be documented and version-controlled.
+La configuración de benchmarking, datasets, versiones de software y hardware y los comandos de ejecución deben ser documentados y controlados por versión.
 
 ---
 
 # Arquitectura de alto nivel
 
-A benchmark follows the pipeline shown below.
+Una benchmark sigue la siguiente pipeline genérica:
 
 ```text
 Dataset
@@ -139,7 +138,7 @@ El resto del framework se comparte entre todos los experimentos.
 ├── tests/
 ├── INSTALL.md
 ├── README.md
-├── CONTRIBUTING.md
+├── CONTRIBUTE.md
 └── pyproject.toml
 ```
 
@@ -156,8 +155,8 @@ Una pipeline implementa el código completo necesario para usar un método de em
 Cada pipeline es responsable de:
 
 * Preprocesar imágenes
-* Extracting caracerística (Si aplica)
-* Emparejar característicar
+* Extraer caracerísticas
+* Emparejar características
 * Producir correspondencias
 
 Una pipeline puede usar múltiples componenetes de forma interna, pero solo debe exponer una sola interfaz pública al resto del framework. Por ejemplo:
@@ -186,12 +185,12 @@ Estos módulos no deben contener lógica de evaluación.
 
 ## Geometría
 
-Los módulos de gemoetría relizan verificación geométrica y estimación.
+Los módulos de geometría relizan verificación geométrica y estimación.
 
 Ejemplos incluyen:
 
 * RANSAC
-* Estimación de homegrafía
+* Estimación de homografía
 * Estimación de matriz fundamental
 
 Estos módulos trabajan sobre las correspondencias producidas por una pipeline.
@@ -233,15 +232,15 @@ El módulo de benchmark debe ser independiente de cada pipeline individual.
 
 ## Visualización
 
-Los módulos de visualización generar salidas quantitativas y cualitativas. 
+Los módulos de visualización generar salidas cuantitativas y cualitativas. 
 
 Ejemplos incluyen:
 
 * Correspondencias de características
 * Gráficas de rendimiento
-* Resumenes de benchmarks
+* Resúmenes de benchmarks
 
-Visualization should only consume benchmark outputs.
+La visualización consume únicamente las salidas de los benchmarks.
 
 ---
 
@@ -267,7 +266,7 @@ Proveen funcionalidades compartidas.
 Ejemplos son:
 
 * Carga de configuraciones
-* I/O de imagenes
+* I/O de imágenes
 * Administración de archivos
 
 Las utilidades deben ser genéricas y reusables.
@@ -288,13 +287,13 @@ match(image_a, image_b)
 MatchingResult
 ```
 
-Internamente, la pipeline puede implementar cualquier combinación de algortimos para producir el resultado.
+Internamente, la pipeline puede implementar cualquier combinación de algoritmos para producir el resultado.
 
 ---
 
 ## Dataset
 
-Los datasets proveen pares de imagenes y sus metadatos.
+Los datasets proveen pares de imágenes y sus metadatos.
 
 ```
 get_pair(index)
@@ -332,14 +331,14 @@ Imagen / Gráfica
 
 Una benchmark genérica sigue los siguientes pasos.
 
-1. Carga un par de imagenes del dataset seleccionado.
+1. Carga un par de imágenes del dataset seleccionado.
 2. Ejecuta el pipeline de emparejamiento seleccionado.
 3. Realiza verificación geométrica.
 4. Calcula las métricas de evaluación.
 5. Guarda los resultados del benchmark.
 6. Genera la visualización.
 
-Cada paso recive la salida del paso anterior.
+Cada paso recibe la salida del paso anterior.
 
 ---
 
@@ -351,9 +350,9 @@ Para añadir un nuevo método de emparejamiento:
 
 1. Implementa la pipeline.
 2. Registrar la pipeline.
-3. Add tests.
-4. Provide a benchmark configuration.
-5. Update documentation.
+3. Agregar pruebas.
+4. Proveer configuración para el benchmark.
+5. Actualizar documentación.
 
 Código existente de benchmarking no debería requerir modificación.
 

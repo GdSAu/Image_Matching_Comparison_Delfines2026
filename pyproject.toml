@@ -21,7 +21,8 @@ exclude = [
     ".venv",
     "__pycache__",
     "outputs",
-    "data",
+    "datasets",
+    "src/models",
 ]
 
 [tool.ruff.lint]
