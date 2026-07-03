@@ -18,11 +18,7 @@ Se recomienda usar un entorno virtual para no mezclar dependencias con otros pro
 
 ```bash
 # Crear entorno
-<<<<<<< HEAD
-python3 -m venv venv
-=======
 python3 -m venv .venv
->>>>>>> e554e9a (feat: estructura inicial del proyecto)
 
 # Activar (Linux / macOS)
 source venv/bin/activate
@@ -42,16 +38,13 @@ El comando varía según tu sistema y si tienes GPU con CUDA.
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 ```
 
-### Con GPU NVIDIA (CUDA 12.1)
+### Con GPU NVIDIA (CUDA 13.2)
 ```bash
-<<<<<<< HEAD
-=======
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu132
 ```
 
 ### Con GPU NVIDIA (CUDA 12.1)
 ```bash
->>>>>>> e554e9a (feat: estructura inicial del proyecto)
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 ```
 
@@ -73,13 +66,8 @@ https://pytorch.org/get-started/locally/
 
 ## Paso 3 — Instalar el resto de dependencias
 
-<<<<<<< HEAD
-```bash
-pip install -r requirements.txt
-=======
 ```bash 
 bash setup.sh
->>>>>>> e554e9a (feat: estructura inicial del proyecto)
 ```
 
 Esto instala:
@@ -92,9 +80,7 @@ Esto instala:
 | `matplotlib` | 3.7.0 | Mostrar imágenes en scripts/notebooks |
 | `numpy` | 1.24.0 | Operaciones matriciales |
 
-<<<<<<< HEAD
-=======
-También clona los repositorios de XFeat y LightGlue y realiza las instalaciones necesarias para usar los modelos.
+Este comando también clona los repositorios de XFeat y LightGlue y realiza las instalaciones necesarias para usar los modelos.
 
 Para desarrollo, instala también las siguientes dependencias:
 
@@ -102,7 +88,6 @@ Para desarrollo, instala también las siguientes dependencias:
 pip install -r requirements-dev.txt
 ```
 
->>>>>>> e554e9a (feat: estructura inicial del proyecto)
 ---
 
 ## Paso 4 — Verificar la instalación

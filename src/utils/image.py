@@ -1,6 +1,7 @@
 import cv2
-import torch
 import numpy as np
+import torch
+
 
 def load_image_rgb(path, device):
 
@@ -12,10 +13,8 @@ def load_image_rgb(path, device):
     )
 
     tensor = (
-        torch.from_numpy(
-            img_rgb.astype(np.float32) / 255.0
-        )
-        .permute(2,0,1)
+        torch.from_numpy(img_rgb.astype(np.float32) / 255.0)
+        .permute(2, 0, 1)
         .unsqueeze(0)
         .to(device)
     )

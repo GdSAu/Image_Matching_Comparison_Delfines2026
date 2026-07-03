@@ -1,5 +1,5 @@
 # Linting and Formating
-black
+ruff
 
 pytest
 

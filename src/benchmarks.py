@@ -6,15 +6,13 @@ from pathlib import Path
 
 import torch
 
-from pipelines.sift_lightglue import SiftLightGlue
 from pipelines.aliked_lightglue import AlikedLightGlue
 from pipelines.disk_lightglue import DiskLightGlue
+from pipelines.sift_lightglue import SiftLightGlue
 from pipelines.superpoint_lightglue import SuperPointLightGlue
 from pipelines.xfeat_lightglue import XFeatLightGlue
-
-from utils.image import load_image_rgb
 from utils.geometry import compute_fundamental_inliers
-
+from utils.image import load_image_rgb
 from visualization import visualize_matches
 
 
@@ -25,7 +23,7 @@ def build_pipeline(method: str, device):
         "aliked_lg": AlikedLightGlue,
         "disk_lg": DiskLightGlue,
         "superpoint_lg": SuperPointLightGlue,
-        "xfeat_lg" : XFeatLightGlue,
+        "xfeat_lg": XFeatLightGlue,
     }
 
     if method not in pipelines:
@@ -36,9 +34,7 @@ def build_pipeline(method: str, device):
 
 def parse_args():
 
-    parser = argparse.ArgumentParser(
-        description="Benchmark image matching methods."
-    )
+    parser = argparse.ArgumentParser(description="Benchmark image matching methods.")
 
     parser.add_argument(
         "--method",
@@ -74,24 +70,15 @@ def main():
 
     args = parse_args()
 
-    device = torch.device(
-        "cuda"
-        if torch.cuda.is_available()
-        else "cpu"
-    )
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     print(f"Device : {device}")
     print(f"Method : {args.method}")
 
     if args.output is None:
-
-        output_path = (
-            Path("../outputs/images")
-            / f"{args.method}.png"
-        )
+        output_path = Path("../outputs/images") / f"{args.method}.png"
 
     else:
-
         output_path = Path(args.output)
 
     output_path.parent.mkdir(
@@ -119,19 +106,9 @@ def main():
         img2_tensor,
     )
 
-    matched0 = (
-        result["matched0"]
-        .detach()
-        .cpu()
-        .numpy()
-    )
+    matched0 = result["matched0"].detach().cpu().numpy()
 
-    matched1 = (
-        result["matched1"]
-        .detach()
-        .cpu()
-        .numpy()
-    )
+    matched1 = result["matched1"].detach().cpu().numpy()
 
     mask = compute_fundamental_inliers(
         matched0,
@@ -150,7 +127,7 @@ def main():
     print(f"Method       : {args.method}")
     print(f"Matches      : {n_matches}")
     print(f"Inliers      : {n_inliers}")
-    print(f"Inlier ratio : {100*n_inliers/n_matches:.2f}%")
+    print(f"Inlier ratio : {100 * n_inliers / n_matches:.2f}%")
 
     visualize_matches(
         img1_tensor,

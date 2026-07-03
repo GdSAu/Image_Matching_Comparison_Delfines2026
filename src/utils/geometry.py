@@ -1,5 +1,4 @@
 import cv2
-import numpy as np
 
 
 def compute_fundamental_inliers(

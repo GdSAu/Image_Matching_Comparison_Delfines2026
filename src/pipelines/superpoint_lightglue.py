@@ -1,11 +1,8 @@
 import torch
-
-from lightglue import SuperPoint
-from lightglue import LightGlue
+from lightglue import LightGlue, SuperPoint
 
 
-class SuperPointLightGlue:  
-
+class SuperPointLightGlue:
     def __init__(
         self,
         device,

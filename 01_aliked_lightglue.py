@@ -39,12 +39,11 @@ import sys
 from pathlib import Path
 
 import cv2
+import kornia.color as KC
+import kornia.feature as KF
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import kornia.feature as KF
-import kornia.color as KC
-
 
 # ---------------------------------------------------------------------------
 # Configuración global
@@ -76,6 +75,7 @@ UMBRAL_RANSAC = 1.5
 # ---------------------------------------------------------------------------
 # Funciones auxiliares
 # ---------------------------------------------------------------------------
+
 
 def seleccionar_dispositivo() -> torch.device:
     """
@@ -124,8 +124,10 @@ def cargar_imagen(ruta: str, max_lado: int) -> tuple[np.ndarray, np.ndarray]:
         # Escalar manteniendo la relación de aspecto
         escala = max_lado / max(h, w)
         nuevo_ancho = int(w * escala)
-        nuevo_alto  = int(h * escala)
-        img_bgr_res = cv2.resize(img_bgr, (nuevo_ancho, nuevo_alto), interpolation=cv2.INTER_AREA)
+        nuevo_alto = int(h * escala)
+        img_bgr_res = cv2.resize(
+            img_bgr, (nuevo_ancho, nuevo_alto), interpolation=cv2.INTER_AREA
+        )
         print(f"  Imagen redimensionada: {w}x{h} → {nuevo_ancho}x{nuevo_alto}")
     else:
         img_bgr_res = img_bgr.copy()
@@ -245,7 +247,8 @@ def emparejar(
     dispositivo: torch.device,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Usa LightGlue para encontrar correspondencias entre dos conjuntos de características.
+    Usa LightGlue para encontrar correspondencias entre dos conjuntos de
+    características.
 
     LightGlue recibe los keypoints y descriptores de ambas imágenes y, mediante
     un mecanismo de atención cruzada (cross-attention transformer), decide qué
@@ -274,14 +277,18 @@ def emparejar(
     # LightGlue los normaliza internamente a [-1, 1] usando image_size.
     data = {
         "image0": {
-            "keypoints":   feats0.keypoints.unsqueeze(0),    # (1, N, 2)
+            "keypoints": feats0.keypoints.unsqueeze(0),  # (1, N, 2)
             "descriptors": feats0.descriptors.unsqueeze(0),  # (1, N, D)
-            "image_size":  torch.tensor([[W0, H0]], device=dispositivo, dtype=torch.float),
+            "image_size": torch.tensor(
+                [[W0, H0]], device=dispositivo, dtype=torch.float
+            ),
         },
         "image1": {
-            "keypoints":   feats1.keypoints.unsqueeze(0),
+            "keypoints": feats1.keypoints.unsqueeze(0),
             "descriptors": feats1.descriptors.unsqueeze(0),
-            "image_size":  torch.tensor([[W1, H1]], device=dispositivo, dtype=torch.float),
+            "image_size": torch.tensor(
+                [[W1, H1]], device=dispositivo, dtype=torch.float
+            ),
         },
     }
 
@@ -290,8 +297,8 @@ def emparejar(
 
     # pred["matches0"]: para cada keypoint de la imagen 0, el índice del
     # keypoint correspondiente en la imagen 1, o -1 si no tiene pareja.
-    matches = pred["matches0"][0]   # (N,)
-    validos = matches > -1          # máscara booleana de puntos emparejados
+    matches = pred["matches0"][0]  # (N,)
+    validos = matches > -1  # máscara booleana de puntos emparejados
 
     mkpts0 = feats0.keypoints[validos].cpu().numpy()
     mkpts1 = feats1.keypoints[matches[validos]].cpu().numpy()
@@ -326,7 +333,10 @@ def filtrar_con_ransac(
     """
     if len(mkpts0) < 8:
         # La Matriz Fundamental requiere al menos 8 puntos para ser estimada.
-        print(f"  Advertencia: solo {len(mkpts0)} correspondencias — insuficiente para RANSAC.")
+        print(
+            f"  Advertencia: solo {len(mkpts0)} correspondencias — "
+            "insuficiente para RANSAC."
+        )
         print("  Prueba con imágenes que compartan más área visual.")
         return mkpts0, mkpts1, None
 
@@ -375,33 +385,41 @@ def visualizar_correspondencias(
     h1, w1 = img1_bgr.shape[:2]
 
     # Canvas lo suficientemente ancho para ambas imágenes
-    alto   = max(h0, h1)
-    ancho  = w0 + w1
+    alto = max(h0, h1)
+    ancho = w0 + w1
     canvas = np.zeros((alto, ancho, 3), dtype=np.uint8)
     canvas[:h0, :w0] = img0_bgr
     canvas[:h1, w0:] = img1_bgr
 
     # Dibujar outliers en rojo (si se pasaron), con transparencia simulada
     if mkpts0_all is not None and mkpts1_all is not None:
-        for pt0, pt1 in zip(mkpts0_all, mkpts1_all):
+        for pt0, pt1 in zip(mkpts0_all, mkpts1_all, strict=True):
             p0 = (int(pt0[0]), int(pt0[1]))
             p1 = (int(pt1[0]) + w0, int(pt1[1]))
             cv2.line(canvas, p0, p1, (0, 0, 180), 1, cv2.LINE_AA)
 
     # Dibujar inliers en verde, más gruesos y prominentes
-    for pt0, pt1 in zip(mkpts0, mkpts1):
+    for pt0, pt1 in zip(mkpts0, mkpts1, strict=True):
         p0 = (int(pt0[0]), int(pt0[1]))
         p1 = (int(pt1[0]) + w0, int(pt1[1]))
-        cv2.line(canvas,   p0, p1, (0, 220, 0), 1, cv2.LINE_AA)
-        cv2.circle(canvas, p0, 3,  (0, 255, 0), -1)
-        cv2.circle(canvas, p1, 3,  (0, 255, 0), -1)
+        cv2.line(canvas, p0, p1, (0, 220, 0), 1, cv2.LINE_AA)
+        cv2.circle(canvas, p0, 3, (0, 255, 0), -1)
+        cv2.circle(canvas, p1, 3, (0, 255, 0), -1)
 
     # Texto informativo en la esquina superior izquierda
     texto = f"Inliers: {len(mkpts0)}"
     if mkpts0_all is not None:
         texto += f" / {len(mkpts0_all)} totales"
-    cv2.putText(canvas, texto, (10, 28), cv2.FONT_HERSHEY_SIMPLEX,
-                0.8, (255, 255, 255), 2, cv2.LINE_AA)
+    cv2.putText(
+        canvas,
+        texto,
+        (10, 28),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        (255, 255, 255),
+        2,
+        cv2.LINE_AA,
+    )
 
     return canvas
 
@@ -409,6 +427,7 @@ def visualizar_correspondencias(
 # ---------------------------------------------------------------------------
 # Pipeline principal
 # ---------------------------------------------------------------------------
+
 
 def ejecutar_pipeline(
     ruta_img0: str,
@@ -477,7 +496,10 @@ def ejecutar_pipeline(
         porcentaje = 100 * len(mkpts0_in) / max(len(mkpts0_raw), 1)
         print(f"  Inliers tras RANSAC: {len(mkpts0_in)} ({porcentaje:.1f}% del total)")
     else:
-        print(f"  RANSAC omitido — usando las {len(mkpts0_in)} correspondencias directamente.")
+        print(
+            f"  RANSAC omitido — usando las {len(mkpts0_in)} correspondencias "
+            "directamente."
+        )
 
     # ---- Visualización ----
     print("\n  Generando visualización...")
@@ -485,8 +507,10 @@ def ejecutar_pipeline(
     outliers_1 = mkpts1_raw if mascara is not None else None
 
     resultado = visualizar_correspondencias(
-        img0_bgr, img1_bgr,
-        mkpts0_in, mkpts1_in,
+        img0_bgr,
+        img1_bgr,
+        mkpts0_in,
+        mkpts1_in,
         mkpts0_all=outliers_0,
         mkpts1_all=outliers_1,
     )
@@ -516,6 +540,7 @@ def ejecutar_pipeline(
 # Interfaz de línea de comandos
 # ---------------------------------------------------------------------------
 
+
 def parsear_argumentos() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Emparejamiento de imágenes con ALIKED + LightGlue (Kornia).",
@@ -527,14 +552,27 @@ Ejemplos:
   python 01_aliked_lightglue.py foto1.jpg foto2.jpg --no-mostrar
         """,
     )
-    parser.add_argument("imagen0", nargs="?", default="img1.jpg",
-                        help="Ruta a la primera imagen (default: img1.jpg)")
-    parser.add_argument("imagen1", nargs="?", default="img2.jpg",
-                        help="Ruta a la segunda imagen (default: img2.jpg)")
-    parser.add_argument("--guardar", metavar="RUTA",
-                        help="Guarda el resultado en la ruta especificada")
-    parser.add_argument("--no-mostrar", dest="mostrar", action="store_false",
-                        help="No abrir ventana de visualización (útil en servidores)")
+    parser.add_argument(
+        "imagen0",
+        nargs="?",
+        default="img1.jpg",
+        help="Ruta a la primera imagen (default: img1.jpg)",
+    )
+    parser.add_argument(
+        "imagen1",
+        nargs="?",
+        default="img2.jpg",
+        help="Ruta a la segunda imagen (default: img2.jpg)",
+    )
+    parser.add_argument(
+        "--guardar", metavar="RUTA", help="Guarda el resultado en la ruta especificada"
+    )
+    parser.add_argument(
+        "--no-mostrar",
+        dest="mostrar",
+        action="store_false",
+        help="No abrir ventana de visualización (útil en servidores)",
+    )
     parser.set_defaults(mostrar=True)
     return parser.parse_args()
 

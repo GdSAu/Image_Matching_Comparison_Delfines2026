@@ -18,12 +18,12 @@ Para instalar todo de una vez:
 
 import sys
 
-
 # ---------------------------------------------------------------------------
 # Funciones de verificación individuales
 # Cada función intenta importar la biblioteca, muestra la versión encontrada
 # y devuelve True si todo está bien, False si hay algún problema.
 # ---------------------------------------------------------------------------
+
 
 def verificar_python() -> bool:
     """Comprueba que la versión de Python sea 3.10 o superior."""
@@ -47,12 +47,13 @@ def verificar_torch() -> bool:
     """
     try:
         import torch
+
         print(f"  [OK] PyTorch {torch.__version__}")
 
         if torch.cuda.is_available():
             for i in range(torch.cuda.device_count()):
                 nombre = torch.cuda.get_device_name(i)
-                mem_gb = torch.cuda.get_device_properties(i).total_memory / 1024 ** 3
+                mem_gb = torch.cuda.get_device_properties(i).total_memory / 1024**3
                 print(f"       GPU {i}: {nombre} ({mem_gb:.1f} GB VRAM)")
         else:
             print("       GPU: no disponible — se usará CPU (el pipeline funciona,")
@@ -77,12 +78,14 @@ def verificar_kornia() -> bool:
     """
     try:
         import kornia
+
         print(f"  [OK] Kornia {kornia.__version__}")
 
         # Verificar que los módulos específicos que usaremos existen.
         # Kornia descarga los pesos de los modelos automáticamente
         # la primera vez que se instancian (requiere conexión a internet).
         from kornia.feature import ALIKED, LightGlue  # noqa: F401
+
         print("       Módulos ALIKED y LightGlue encontrados.")
         return True
 
@@ -101,6 +104,7 @@ def verificar_opencv() -> bool:
     """
     try:
         import cv2
+
         print(f"  [OK] OpenCV {cv2.__version__}")
         return True
 
@@ -120,6 +124,7 @@ def verificar_gradio() -> bool:
     """
     try:
         import gradio
+
         print(f"  [OK] Gradio {gradio.__version__}")
         return True
 
@@ -138,6 +143,7 @@ def verificar_matplotlib() -> bool:
     """
     try:
         import matplotlib
+
         print(f"  [OK] Matplotlib {matplotlib.__version__}")
         return True
 
@@ -151,6 +157,7 @@ def verificar_numpy() -> bool:
     """Comprueba NumPy, requerido por OpenCV y por la mayoría de las bibliotecas."""
     try:
         import numpy
+
         print(f"  [OK] NumPy {numpy.__version__}")
         return True
 
@@ -173,13 +180,13 @@ if __name__ == "__main__":
     print()
 
     resultados = {
-        "Python":     verificar_python(),
-        "PyTorch":    verificar_torch(),
-        "Kornia":     verificar_kornia(),
-        "OpenCV":     verificar_opencv(),
-        "Gradio":     verificar_gradio(),
+        "Python": verificar_python(),
+        "PyTorch": verificar_torch(),
+        "Kornia": verificar_kornia(),
+        "OpenCV": verificar_opencv(),
+        "Gradio": verificar_gradio(),
         "Matplotlib": verificar_matplotlib(),
-        "NumPy":      verificar_numpy(),
+        "NumPy": verificar_numpy(),
     }
 
     print()
