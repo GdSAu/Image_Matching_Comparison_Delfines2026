@@ -247,7 +247,8 @@ def emparejar(
     dispositivo: torch.device,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Usa LightGlue para encontrar correspondencias entre dos conjuntos de características.
+    Usa LightGlue para encontrar correspondencias entre dos conjuntos de
+    características.
 
     LightGlue recibe los keypoints y descriptores de ambas imágenes y, mediante
     un mecanismo de atención cruzada (cross-attention transformer), decide qué
@@ -333,7 +334,8 @@ def filtrar_con_ransac(
     if len(mkpts0) < 8:
         # La Matriz Fundamental requiere al menos 8 puntos para ser estimada.
         print(
-            f"  Advertencia: solo {len(mkpts0)} correspondencias — insuficiente para RANSAC."
+            f"  Advertencia: solo {len(mkpts0)} correspondencias — "
+            "insuficiente para RANSAC."
         )
         print("  Prueba con imágenes que compartan más área visual.")
         return mkpts0, mkpts1, None
@@ -391,13 +393,13 @@ def visualizar_correspondencias(
 
     # Dibujar outliers en rojo (si se pasaron), con transparencia simulada
     if mkpts0_all is not None and mkpts1_all is not None:
-        for pt0, pt1 in zip(mkpts0_all, mkpts1_all):
+        for pt0, pt1 in zip(mkpts0_all, mkpts1_all, strict=True):
             p0 = (int(pt0[0]), int(pt0[1]))
             p1 = (int(pt1[0]) + w0, int(pt1[1]))
             cv2.line(canvas, p0, p1, (0, 0, 180), 1, cv2.LINE_AA)
 
     # Dibujar inliers en verde, más gruesos y prominentes
-    for pt0, pt1 in zip(mkpts0, mkpts1):
+    for pt0, pt1 in zip(mkpts0, mkpts1, strict=True):
         p0 = (int(pt0[0]), int(pt0[1]))
         p1 = (int(pt1[0]) + w0, int(pt1[1]))
         cv2.line(canvas, p0, p1, (0, 220, 0), 1, cv2.LINE_AA)
@@ -495,7 +497,8 @@ def ejecutar_pipeline(
         print(f"  Inliers tras RANSAC: {len(mkpts0_in)} ({porcentaje:.1f}% del total)")
     else:
         print(
-            f"  RANSAC omitido — usando las {len(mkpts0_in)} correspondencias directamente."
+            f"  RANSAC omitido — usando las {len(mkpts0_in)} correspondencias "
+            "directamente."
         )
 
     # ---- Visualización ----

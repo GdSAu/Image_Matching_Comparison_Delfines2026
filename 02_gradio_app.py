@@ -205,7 +205,7 @@ def dibujar_correspondencias(
 
     # Outliers en rojo tenue
     if mkpts0_all is not None:
-        for pt0, pt1 in zip(mkpts0_all, mkpts1_all):
+        for pt0, pt1 in zip(mkpts0_all, mkpts1_all, strict=True):
             cv2.line(
                 canvas,
                 (int(pt0[0]), int(pt0[1])),
@@ -216,7 +216,7 @@ def dibujar_correspondencias(
             )
 
     # Inliers en verde
-    for pt0, pt1 in zip(mkpts0_in, mkpts1_in):
+    for pt0, pt1 in zip(mkpts0_in, mkpts1_in, strict=True):
         p0 = (int(pt0[0]), int(pt0[1]))
         p1 = (int(pt1[0]) + w0, int(pt1[1]))
         cv2.line(canvas, p0, p1, (0, 210, 0), 1, cv2.LINE_AA)
@@ -295,9 +295,11 @@ with gr.Blocks(title="Image Matching — ALIKED + LightGlue") as demo:
     gr.Markdown("""
     # Image Matching con ALIKED + LightGlue
     Sube dos fotos de la **misma escena desde ángulos distintos** y el modelo
-    encontrará automáticamente los puntos que corresponden al mismo lugar del mundo real.
+    encontrará automáticamente los puntos que corresponden al mismo lugar del mundo 
+                real.
 
-    **Pipeline:** ALIKED (extracción de keypoints) → LightGlue (emparejamiento) → RANSAC (filtrado geométrico)
+    **Pipeline:** ALIKED (extracción de keypoints) → LightGlue (emparejamiento) 
+                → RANSAC (filtrado geométrico)
 
     ---
     """)
@@ -332,7 +334,8 @@ with gr.Blocks(title="Image Matching — ALIKED + LightGlue") as demo:
     ---
     ### Consejos para obtener buenos resultados
     - Usa fotos del **mismo objeto o lugar** tomadas desde ángulos distintos.
-    - Asegúrate de que haya **suficiente textura** (evita paredes lisas o cielos uniformes).
+    - Asegúrate de que haya **suficiente textura** (evita paredes lisas o cielos 
+        uniformes).
     - Un solapamiento del **30%–70%** entre imágenes suele dar los mejores resultados.
     - Si hay pocos inliers, prueba reduciendo el ángulo entre las dos tomas.
     """)

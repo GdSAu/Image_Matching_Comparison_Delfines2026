@@ -4,6 +4,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import torch
+from modules.xfeat import XFeat
 
 # ---------------------------------------------------------------------
 # Make the cloned repository importable
@@ -15,8 +16,6 @@ XFEAT_ROOT = ROOT / "models" / "XFeat"
 
 if str(XFEAT_ROOT) not in sys.path:
     sys.path.insert(0, str(XFEAT_ROOT))
-
-from modules.xfeat import XFeat
 
 
 class XFeatLightGlue:
