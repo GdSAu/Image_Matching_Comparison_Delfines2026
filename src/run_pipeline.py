@@ -1,5 +1,6 @@
 ## How to run it
-# python src/run_pipeline.py --method xfeat_lg --img1 datasets/imagen1.jpeg --img2 datasets/imagen2.jpeg
+# python src/run_pipeline.py --method xfeat_lg --img1 datasets/imagen1.jpeg
+# --img2 datasets/imagen2.jpeg
 
 import argparse
 from pathlib import Path

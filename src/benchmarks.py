@@ -8,7 +8,8 @@ ground truth that dataset provides (homography, pose, or none); see
 datasets/base.py.
 
 Usage:
-    python benchmarks.py --method xfeat_lg --dataset hpatches --data-root ../datasets/hpatches-sequences-release
+    python benchmarks.py --method xfeat_lg --dataset hpatches --data-root
+    ../datasets/hpatches-sequences-release
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from dataset_interface import GroundTruthKind, ImagePairDataset
+from dataset_interface import GroundTruthKind, HPatchesDataset, ImagePairDataset
 from metrics import (
     homography_reprojection_errors,
     inlier_ratio,
@@ -35,8 +36,6 @@ from pipelines.superpoint_lightglue import SuperPointLightGlue
 from pipelines.xfeat_lightglue import XFeatLightGlue
 from utils.geometry import compute_fundamental_inliers
 from utils.image import load_image_rgb
-
-from dataset_interface import HPatchesDataset
 
 PIPELINES = {
     "sift_lg": SiftLightGlue,
@@ -66,7 +65,7 @@ def build_dataset(name: str, data_root: Path) -> ImagePairDataset:
 
     registry = {
         "folder": FolderPairsDataset,
-        "hpatches": HPatchesDataset,       
+        "hpatches": HPatchesDataset,
         # "imc": IMCDataset,                 # TODO
         # "mismatched": MismatchedDataset,   # TODO
     }
@@ -92,7 +91,9 @@ def evaluate_pair(pipeline, pair, device: torch.device) -> dict:
     matched0 = result["matched0"].detach().cpu().numpy()
     matched1 = result["matched1"].detach().cpu().numpy()
 
-    mask = compute_fundamental_inliers(matched0, matched1) if len(matched0) > 0 else None
+    mask = (
+        compute_fundamental_inliers(matched0, matched1) if len(matched0) > 0 else None
+    )
     n_matches = len(matched0)
     n_inliers = int(np.sum(mask)) if mask is not None else 0
 
@@ -144,7 +145,9 @@ def aggregate(per_pair_metrics: list[dict]) -> dict:
         if values:
             summary[f"mean_{key}"] = float(np.mean(values))
 
-    summary["total_time_seconds"] = float(sum(m["time_seconds"] for m in per_pair_metrics))
+    summary["total_time_seconds"] = float(
+        sum(m["time_seconds"] for m in per_pair_metrics)
+    )
     summary["n_pairs"] = len(per_pair_metrics)
     return summary
 
@@ -175,9 +178,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--dataset", required=True, help="Dataset name (see build_dataset registry)."
     )
-    parser.add_argument("--data-root", required=True, help="Path to the dataset's data directory.")
     parser.add_argument(
-        "--output", default=None, help="CSV path for per-pair results (default: outputs/metrics/)."
+        "--data-root", required=True, help="Path to the dataset's data directory."
+    )
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="CSV path for per-pair results (default: outputs/metrics/).",
     )
     return parser.parse_args()
 

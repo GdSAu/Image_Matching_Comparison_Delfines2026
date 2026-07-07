@@ -217,7 +217,12 @@ class HPatchesDataset(ImagePairDataset):
                     )
 
                 self._pairs.append(
-                    (f"{sequence_dir.name}_1_{k}", reference_image, target_image, homography_file)
+                    (
+                        f"{sequence_dir.name}_1_{k}",
+                        reference_image,
+                        target_image,
+                        homography_file,
+                    )
                 )
 
     def __len__(self) -> int:

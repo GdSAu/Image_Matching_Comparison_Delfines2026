@@ -1,10 +1,11 @@
 """Métricas para evaluar pipelines de emparejamiento de imágenes contra un dataset.
 
-Tres modos de gorund-truth son soportados, coincidiendo con lo que diferentes 
+Tres modos de gorund-truth son soportados, coincidiendo con lo que diferentes
 datasets de benchmark proveen:
 
 - "homography": Una homografía H 3x3 con puntos mapeados de una imagen0 a una imagen1
-  (e.g. HPatches). La precisión (Accuracy) está basada en error de reprojección, en pixeles.
+  (e.g. HPatches).
+  La precisión (Accuracy) está basada en error de reprojección, en pixeles.
 - "pose": relative rotation R and translation t (up to scale) between the
   two cameras, plus intrinsics K0/K1 (e.g. IMC, Mismatched, MegaDepth-style
   datasets). Accuracy is based on angular pose error, following the mAA
@@ -25,7 +26,6 @@ from typing import Iterable, Optional
 
 import cv2
 import numpy as np
-
 
 # ---------------------------------------------------------------------------
 # Timing
@@ -157,7 +157,9 @@ def relative_pose_error(
 # ---------------------------------------------------------------------------
 
 
-def mean_average_accuracy(errors: Iterable[float], thresholds: Iterable[float]) -> float:
+def mean_average_accuracy(
+    errors: Iterable[float], thresholds: Iterable[float]
+) -> float:
     """mean Average Accuracy: for each threshold, the fraction of errors at
     or below it, averaged across all thresholds.
 
