@@ -5,7 +5,6 @@ from pathlib import Path
 import cv2
 import numpy as np
 import torch
-from modules.xfeat import XFeat
 
 # ---------------------------------------------------------------------
 # Cargar el paquete `modules` de XFeat de forma explícita
@@ -60,6 +59,8 @@ def _cargar_paquete_modules_de_xfeat() -> None:
 
 
 _cargar_paquete_modules_de_xfeat()
+
+from modules.xfeat import XFeat
 
 
 class XFeatLightGlue:
