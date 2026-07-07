@@ -147,13 +147,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu132 # GPU CUDA 13.2
 
 # 3. Resto de dependencias + repos vendored (LightGlue, XFeat)
-bash setup.sh
-
-# 4. Dataset de prueba (HPatches)
-mkdir -p datasets/hpatches && cd datasets/hpatches
-wget https://huggingface.co/datasets/vbalnt/hpatches/resolve/main/hpatches-sequences-release.zip
-unzip hpatches-sequences-release.zip
-cd ../..
+bash setup.sh --datasets
 
 # 5. Verificar
 cd src
