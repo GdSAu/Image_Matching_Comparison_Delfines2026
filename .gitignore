@@ -41,8 +41,9 @@ venv.bak/
 
 # Misc
 .gradio/
+.ruff_cache/
 
 # Project-Specific
-datasets/
-outputs/
-src/models/
+datasets/*
+outputs/**
+src/models/*
