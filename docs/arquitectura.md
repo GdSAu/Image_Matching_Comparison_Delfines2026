@@ -93,27 +93,35 @@ La configuración de benchmarking, datasets, versiones de software y hardware y 
 
 # Arquitectura de alto nivel
 
-Una benchmark sigue la siguiente pipeline genérica:
+El framework tiene dos puntos de entrada que comparten el mismo núcleo (pipeline de emparejamiento + verificación geométrica), pero divergen según la granularidad de la entrada: un solo par de imágenes o un dataset completo.
 
 ```text
-Dataset
-    │
-    ▼
-Pipeline de Emparejamiento
-    │
-    ▼
-Resultado de Emparejamiento
-    │
-    ▼
-Verificación Geométrica
-    │
-    ▼
-Evaluación
-    │
-    ├──────────────┐
-    ▼              ▼
-Visualización   Resultados del Benchmark
+                Dataset (un par, o N pares)
+                          │
+                          ▼
+            Pipeline de Emparejamiento
+                          │
+                          ▼
+            Verificación Geométrica
+                          │
+          ┌───────────────┴────────────────┐
+          ▼                                 ▼
+     Un solo par                      Dataset completo
+          │                                 │
+          ▼                                 ▼
+  Visualización de              Evaluación agregada
+  Correspondencias              (mAA, accuracy, inlier
+                                 ratio, tiempo)
+                                              │
+                                              ▼
+                                 Resultados del Benchmark
+                                 (CSV por par + resumen)
 ```
+
+* **`run_pipeline.py`** implementa la rama de un solo par: ejecuta la pipeline sobre dos imágenes y genera la visualización de correspondencias. No calcula métricas agregadas.
+* **`benchmarks.py`** implementa la rama de dataset completo: itera sobre todos los pares de un `ImagePairDataset`, evalúa las métricas que el ground truth de cada par permita calcular, y guarda los resultados. No genera visualización de correspondencias — ver la nota en "Visualización" más abajo.
+
+Ambas ramas reutilizan la misma pipeline de emparejamiento y el mismo módulo de verificación geométrica; solo el punto de entrada y la salida final cambian.
 
 Solo la **pipeline de emparejamiento** cambia entre diferentes métodos.
 El resto del framework se comparte entre todos los experimentos.
@@ -125,16 +133,19 @@ El resto del framework se comparte entre todos los experimentos.
 ```text
 .
 ├── configs/
-├── data/
+├── datasets/
 ├── docs/
 ├── outputs/
 ├── scripts/
 ├── src/
-│   ├── benchmarks/
+│   ├── benchmarks.py
+│   ├── run_pipeline.py
+│   ├── dataset_interface.py
+│   ├── metrics.py
 │   ├── models/
 │   ├── pipelines/
 │   ├── utils/
-│   └── visualization/
+│   └── visualization.py
 ├── tests/
 ├── INSTALL.md
 ├── README.md
@@ -241,6 +252,8 @@ Ejemplos incluyen:
 * Resúmenes de benchmarks
 
 La visualización consume únicamente las salidas de los benchmarks.
+
+**Nota:** la visualización de correspondencias (`run_pipeline.py`) solo aplica a un único par de imágenes. `benchmarks.py` evalúa datasets completos y no genera visualización de correspondencias por par — solo resultados agregados. Ver el diagrama en "Arquitectura de alto nivel".
 
 ---
 
