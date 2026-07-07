@@ -1,4 +1,4 @@
-﻿"""
+"""
 Script 2: Interfaz Web Interactiva con Gradio
 =============================================
 Este script envuelve el pipeline ALIKED + LightGlue en una aplicaciÃ³n web
@@ -32,27 +32,26 @@ import os
 
 import cv2
 import gradio as gr
+import kornia.color as KC
+import kornia.feature as KF
 import numpy as np
 import torch
-import kornia.feature as KF
-import kornia.color as KC
 
 from dino_matching import DinoV3Matcher
-
 
 # ---------------------------------------------------------------------------
 # ConfiguraciÃ³n del pipeline
 # (Los mismos parÃ¡metros que en 01_aliked_lightglue.py, centralizados aquÃ­)
 # ---------------------------------------------------------------------------
 
-MAX_LADO          = 1024   # TamaÃ±o mÃ¡ximo de la imagen antes de procesarla
-MAX_KEYPOINTS     = 2048   # NÃºmero mÃ¡ximo de keypoints por imagen
-UMBRAL_DETECCION  = 0.01   # Umbral de confianza mÃ­nima para detectar un keypoint
-RADIO_NMS         = 3      # Distancia mÃ­nima entre keypoints (pÃ­xeles)
-UMBRAL_RANSAC     = 1.5    # Tolerancia de reproyecciÃ³n en RANSAC (pÃ­xeles)
-MODELO_ALIKED     = "ALIKED + LightGlue"
-MODELO_DINOV3     = "DINOv3 (parches visuales)"
-MODELO_TODOS      = "Tres modelos en conjunto"
+MAX_LADO = 1024  # TamaÃ±o mÃ¡ximo de la imagen antes de procesarla
+MAX_KEYPOINTS = 2048  # NÃºmero mÃ¡ximo de keypoints por imagen
+UMBRAL_DETECCION = 0.01  # Umbral de confianza mÃ­nima para detectar un keypoint
+RADIO_NMS = 3  # Distancia mÃ­nima entre keypoints (pÃ­xeles)
+UMBRAL_RANSAC = 1.5  # Tolerancia de reproyecciÃ³n en RANSAC (pÃ­xeles)
+MODELO_ALIKED = "ALIKED + LightGlue"
+MODELO_DINOV3 = "DINOv3 (parches visuales)"
+MODELO_TODOS = "Tres modelos en conjunto"
 
 
 # ---------------------------------------------------------------------------
@@ -97,6 +96,7 @@ print("  Modelos listos.")
 # En un proyecto real estas funciones se importarÃ­an desde un mÃ³dulo compartido.
 # ---------------------------------------------------------------------------
 
+
 def redimensionar_si_necesario(img_bgr: np.ndarray) -> np.ndarray:
     """Reduce la imagen si algÃºn lado supera MAX_LADO, preservando aspecto."""
     h, w = img_bgr.shape[:2]
@@ -115,9 +115,9 @@ def bgr_a_tensor_gris(img_bgr: np.ndarray) -> torch.Tensor:
     BGR uint8 â†’ tensor PyTorch (1, 1, H, W) float32 en [0, 1].
     ALIKED espera imÃ¡genes en escala de grises normalizadas.
     """
-    img_rgb   = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
     img_float = img_rgb.astype(np.float32) / 255.0
-    tensor    = torch.from_numpy(img_float).permute(2, 0, 1).unsqueeze(0).to(DISPOSITIVO)
+    tensor = torch.from_numpy(img_float).permute(2, 0, 1).unsqueeze(0).to(DISPOSITIVO)
     return KC.rgb_to_grayscale(tensor)  # â†’ (1, 1, H, W)
 
 
@@ -140,20 +140,24 @@ def extraer_y_emparejar(img0_bgr: np.ndarray, img1_bgr: np.ndarray):
         H1, W1 = hw1
         data = {
             "image0": {
-                "keypoints":   feats0.keypoints.unsqueeze(0),
+                "keypoints": feats0.keypoints.unsqueeze(0),
                 "descriptors": feats0.descriptors.unsqueeze(0),
-                "image_size":  torch.tensor([[W0, H0]], device=DISPOSITIVO, dtype=torch.float),
+                "image_size": torch.tensor(
+                    [[W0, H0]], device=DISPOSITIVO, dtype=torch.float
+                ),
             },
             "image1": {
-                "keypoints":   feats1.keypoints.unsqueeze(0),
+                "keypoints": feats1.keypoints.unsqueeze(0),
                 "descriptors": feats1.descriptors.unsqueeze(0),
-                "image_size":  torch.tensor([[W1, H1]], device=DISPOSITIVO, dtype=torch.float),
+                "image_size": torch.tensor(
+                    [[W1, H1]], device=DISPOSITIVO, dtype=torch.float
+                ),
             },
         }
         pred = LIGHTGLUE(data)
 
     matches = pred["matches0"][0]
-    validos  = matches > -1
+    validos = matches > -1
 
     mkpts0 = feats0.keypoints[validos].cpu().numpy()
     mkpts1 = feats1.keypoints[matches[validos]].cpu().numpy()
@@ -248,18 +252,22 @@ def dibujar_correspondencias(
     # Outliers en rojo tenue
     if mkpts0_all is not None:
         for pt0, pt1 in zip(mkpts0_all, mkpts1_all):
-            cv2.line(canvas,
-                     (int(pt0[0]), int(pt0[1])),
-                     (int(pt1[0]) + w0, int(pt1[1])),
-                     (0, 0, 160), 1, cv2.LINE_AA)
+            cv2.line(
+                canvas,
+                (int(pt0[0]), int(pt0[1])),
+                (int(pt1[0]) + w0, int(pt1[1])),
+                (0, 0, 160),
+                1,
+                cv2.LINE_AA,
+            )
 
     # Inliers en verde
     for pt0, pt1 in zip(mkpts0_in, mkpts1_in):
         p0 = (int(pt0[0]), int(pt0[1]))
         p1 = (int(pt1[0]) + w0, int(pt1[1]))
-        cv2.line(canvas,   p0, p1, (0, 210, 0), 1, cv2.LINE_AA)
-        cv2.circle(canvas, p0, 3,  (0, 255, 0), -1)
-        cv2.circle(canvas, p1, 3,  (0, 255, 0), -1)
+        cv2.line(canvas, p0, p1, (0, 210, 0), 1, cv2.LINE_AA)
+        cv2.circle(canvas, p0, 3, (0, 255, 0), -1)
+        cv2.circle(canvas, p1, 3, (0, 255, 0), -1)
 
     return canvas
 
@@ -282,9 +290,12 @@ def renderizar_resultado(
     outliers_1 = mkpts1_raw if mascara is not None else None
 
     resultado_bgr = dibujar_correspondencias(
-        img0_bgr, img1_bgr,
-        mkpts0_in, mkpts1_in,
-        outliers_0, outliers_1,
+        img0_bgr,
+        img1_bgr,
+        mkpts0_in,
+        mkpts1_in,
+        outliers_0,
+        outliers_1,
     )
 
     total = len(mkpts0_raw)
@@ -318,7 +329,9 @@ def inferencia_dinov3(
     img1_bgr: np.ndarray,
 ):
     """Ejecuta DINOv3 y adapta sus parches al contrato de correspondencias."""
-    mkpts0_raw, mkpts1_raw, n_kpts0, n_kpts1 = extraer_y_emparejar_dinov3(img0_bgr, img1_bgr)
+    mkpts0_raw, mkpts1_raw, n_kpts0, n_kpts1 = extraer_y_emparejar_dinov3(
+        img0_bgr, img1_bgr
+    )
     stats = (
         f"Modelo: {MODELO_DINOV3}\n"
         f"Keypoints detectados:  Imagen 1: {n_kpts0}  |  Imagen 2: {n_kpts1}\n"
@@ -331,7 +344,9 @@ def inferencia_tres_modelos(img0_bgr: np.ndarray, img1_bgr: np.ndarray):
     """Ejecuta ALIKED, LightGlue y DINOv3 bajo el mismo contrato de salida."""
     aliked0, aliked1, n_aliked0, n_aliked1 = extraer_y_emparejar(img0_bgr, img1_bgr)
     dino0, dino1, n_dino0, n_dino1 = extraer_y_emparejar_dinov3(img0_bgr, img1_bgr)
-    mkpts0_raw, mkpts1_raw = combinar_correspondencias((aliked0, aliked1), (dino0, dino1))
+    mkpts0_raw, mkpts1_raw = combinar_correspondencias(
+        (aliked0, aliked1), (dino0, dino1)
+    )
 
     stats = (
         f"Modelo: {MODELO_TODOS}\n"
@@ -386,7 +401,6 @@ def inferencia(
 # ---------------------------------------------------------------------------
 
 with gr.Blocks(title="Image Matching â€” ALIKED + LightGlue") as demo:
-
     gr.Markdown("""
     # Image Matching con ALIKED + LightGlue y DINOv3
     Sube dos fotos de la **misma escena desde Ã¡ngulos distintos** y el modelo
@@ -456,6 +470,7 @@ with gr.Blocks(title="Image Matching â€” ALIKED + LightGlue") as demo:
 # Punto de entrada
 # ---------------------------------------------------------------------------
 
+
 def obtener_puerto_gradio() -> int | None:
     """
     Devuelve el puerto configurado por variable de entorno.
@@ -472,5 +487,5 @@ if __name__ == "__main__":
     demo.launch(
         server_name=os.getenv("GRADIO_SERVER_NAME", "127.0.0.1"),
         server_port=obtener_puerto_gradio(),
-        #share=True,            # descomenta para obtener un enlace pÃºblico temporal
+        # share=True,            # descomenta para obtener un enlace pÃºblico temporal
     )

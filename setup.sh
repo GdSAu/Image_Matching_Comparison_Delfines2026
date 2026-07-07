@@ -1,21 +1,91 @@
 #!/usr/bin/env bash
 set -e
-python -m venv .venv
-source .venv/bin/activate
+
+INSTALL_DATASETS=false
+
+# -----------------------------
+# Parsear arguments
+# -----------------------------
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --datasets)
+            INSTALL_DATASETS=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: bash setup.sh [--datasets]"
+            exit 1
+            ;;
+    esac
+done
+
+# -----------------------------
+# Instalar dependencias de Python
+# -----------------------------
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# Repositorios de terceros (vendored). Deben clonarse en src/models/, no en
-# ./models/ — es la ruta que src/pipelines/*.py espera vía sys.path, y la
-# que pyproject.toml excluye de Ruff. Ver docs/arquitectura.md.
+# -----------------------------
+# Clonar repositorios de terceros
+# -----------------------------
 mkdir -p src/models
+
 if [ ! -d src/models/LightGlue ]; then
-git clone https://github.com/cvg/LightGlue.git src/models/LightGlue
-fi
-pip install -e src/models/LightGlue
-if [ ! -d src/models/XFeat ]; then
-git clone https://github.com/verlab/accelerated_features.git src/models/XFeat
+    echo "Cloning LightGlue..."
+    git clone https://github.com/cvg/LightGlue.git src/models/LightGlue
+else
+    echo "LightGlue already present."
 fi
 
-# For development
+pip install -e src/models/LightGlue
+
+if [ ! -d src/models/XFeat ]; then
+    echo "Cloning XFeat..."
+    git clone https://github.com/verlab/accelerated_features.git src/models/XFeat
+else
+    echo "XFeat already present."
+fi
+
+# -----------------------------
+# Datasets opcionales
+# -----------------------------
+if [ "$INSTALL_DATASETS" = true ]; then
+    echo ""
+    echo "Installing datasets..."
+    mkdir -p datasets/hpatches
+
+    DATASET_DIR="datasets/hpatches/hpatches-sequences-release"
+    ZIP_FILE="datasets/hpatches/hpatches-sequences-release.zip"
+
+    if [ -d "$DATASET_DIR" ]; then
+        echo "HPatches already installed."
+    else
+        if [ ! -f "$ZIP_FILE" ]; then
+            echo "Downloading HPatches..."
+            wget \
+                https://huggingface.co/datasets/vbalnt/hpatches/resolve/main/hpatches-sequences-release.zip \
+                -O "$ZIP_FILE"
+        else
+            echo "Using existing HPatches ZIP."
+        fi
+
+        echo "Extracting HPatches..."
+        unzip -q "$ZIP_FILE" -d datasets/hpatches
+
+        echo "Removing ZIP..."
+        rm "$ZIP_FILE"
+
+        echo "HPatches installed successfully."
+    fi
+fi
+
+echo ""
+echo "Setup completed successfully."
+
+if [ "$INSTALL_DATASETS" = false ]; then
+    echo "Run 'bash setup.sh --datasets' if you also want to install HPatches."
+fi
+
+# Para desarrollo:
 # pip install -r requirements-dev.txt

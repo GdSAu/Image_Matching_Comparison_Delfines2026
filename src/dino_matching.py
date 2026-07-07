@@ -16,7 +16,6 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 
-
 DINO_MODEL_ID = "facebook/dinov3-vitb16-pretrain-lvd1689m"
 
 
@@ -90,7 +89,9 @@ class DinoV3Matcher:
             grid_h, grid_w = self._inferir_grid(n_patches)
 
         embeddings = F.normalize(tokens, p=2, dim=1)
-        centros = self._centros_de_parches(grid_h, grid_w, img_bgr.shape[1], img_bgr.shape[0])
+        centros = self._centros_de_parches(
+            grid_h, grid_w, img_bgr.shape[1], img_bgr.shape[0]
+        )
         return embeddings, centros
 
     def encontrar_correspondencias(

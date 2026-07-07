@@ -8,8 +8,8 @@ ground truth that dataset provides (homography, pose, or none); see
 datasets/base.py.
 
 Usage:
-    python benchmarks.py --method xfeat_lg --dataset hpatches --data-root
-    ../datasets/hpatches-sequences-release
+    python benchmarks.py --method aliked_lg --dataset hpatches --data-root
+    ../datasets/hpatches/hpatches-sequences-release
 """
 
 from __future__ import annotations

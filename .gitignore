@@ -44,6 +44,3 @@ venv.bak/
 .ruff_cache/
 
 # Project-Specific
-datasets/*
-outputs/**
-src/models/*

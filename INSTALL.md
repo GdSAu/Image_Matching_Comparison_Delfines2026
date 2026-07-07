@@ -34,6 +34,11 @@ El comando varía según tu sistema y si tenés GPU con CUDA.
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 ```
 
+### Con GPU NVIDIA (CUDA 13.2)
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu132
+```
+
 ### Con GPU NVIDIA (CUDA 12.1)
 ```bash
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
@@ -45,7 +50,7 @@ pip install torch torchvision
 ```
 > MPS (GPU integrada de Apple) se activa automáticamente si PyTorch >= 2.0.
 
-**¿No sabés cuál usar?** Visitá el selector oficial: https://pytorch.org/get-started/locally/
+**¿No sabes cuál usar?** Visita el selector oficial: https://pytorch.org/get-started/locally/
 
 ---
 
@@ -114,7 +119,7 @@ Si todo está bien, vas a ver el conteo de matches/inliers impreso en consola y 
 
 **Dataset completo, sin visualización:**
 ```bash
-python benchmarks.py --method aliked_lg --dataset hpatches \
+python benchmarks.py --method aliked_lg --dataset hpatches
     --data-root ../datasets/hpatches/hpatches-sequences-release
 ```
 
@@ -139,21 +144,14 @@ python3 -m venv .venv && source .venv/bin/activate
 # 2. PyTorch — elige uno según tu caso:
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu   # CPU
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121 # GPU CUDA 12.1
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu132 # GPU CUDA 13.2
 
 # 3. Resto de dependencias + repos vendored (LightGlue, XFeat)
-bash setup.sh
-
-# 4. Dataset de prueba (HPatches)
-mkdir -p datasets/hpatches && cd datasets/hpatches
-wget https://huggingface.co/datasets/vbalnt/hpatches/resolve/main/hpatches-sequences-release.zip
-unzip hpatches-sequences-release.zip
-cd ../..
+bash setup.sh --datasets
 
 # 5. Verificar
 cd src
-python run_pipeline.py --method aliked_lg \
-    --img1 ../datasets/hpatches/hpatches-sequences-release/i_ajuntament/1.ppm \
-    --img2 ../datasets/hpatches/hpatches-sequences-release/i_ajuntament/2.ppm
+python run_pipeline.py --method aliked_lg --img1 ../datasets/hpatches/hpatches-sequences-release/i_ajuntament/1.ppm img2 ../datasets/hpatches/hpatches-sequences-release/i_ajuntament/2.ppm
 ```
 
 ---
