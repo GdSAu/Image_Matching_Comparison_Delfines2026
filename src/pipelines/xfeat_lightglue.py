@@ -60,7 +60,7 @@ def _cargar_paquete_modules_de_xfeat() -> None:
 
 _cargar_paquete_modules_de_xfeat()
 
-from modules.xfeat import XFeat
+from modules.xfeat import XFeat  # noqa: E402, I001
 
 
 class XFeatLightGlue:
