@@ -179,7 +179,7 @@ def parse_args() -> argparse.Namespace:
         "--dataset", required=True, help="Dataset name (see build_dataset registry)."
     )
     parser.add_argument(
-        "--data-root", required=True, help="Path to the dataset's data directory."
+        "--data-root", required=False, help="Path to the dataset's data directory."
     )
     parser.add_argument(
         "--output",
@@ -196,6 +196,14 @@ def main():
     print(f"Device  : {device}")
     print(f"Method  : {args.method}")
     print(f"Dataset : {args.dataset}")
+
+    if(args.data_root is None):
+        match (args.dataset):
+            case "hpatches":
+                PROJECT_ROOT = Path(__file__).resolve().parents[1]
+                args.data_root = PROJECT_ROOT / "datasets" / "HPatches" / "hpatches-sequences-release"
+            case _:
+                raise ValueError(f"Unknown dataset: {args.dataset}")
 
     pipeline = build_pipeline(args.method, device)
     dataset = build_dataset(args.dataset, Path(args.data_root))
