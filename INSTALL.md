@@ -45,7 +45,7 @@ pip install torch torchvision
 ```
 > MPS (GPU integrada de Apple) se activa automáticamente si PyTorch >= 2.0.
 
-**¿No sabés cuál usar?** Visitá el selector oficial: https://pytorch.org/get-started/locally/
+**¿No sabes cuál usar?** Visita el selector oficial: https://pytorch.org/get-started/locally/
 
 ---
 
@@ -54,7 +54,10 @@ pip install torch torchvision
 ```bash
 bash setup.sh
 ```
-
+Para instalar los datasets en adición a las dependencias, usa: 
+```bash
+bash setup.sh
+```
 Esto:
 
 1. Instala las dependencias de `requirements.txt` (`kornia`, `opencv-python`, `gradio`, `matplotlib`, `numpy`).
@@ -70,19 +73,6 @@ pip install -r requirements-dev.txt
 
 ---
 
-## Paso 4 — Instalar datasets
-
-Los datasets **no** se instalan con `setup.sh` — se descargan por separado, bajo `datasets/` (también gitignored, dado su tamaño).
-
-### HPatches
-
-```bash
-cd datasets/
-wget https://huggingface.co/datasets/vbalnt/hpatches/resolve/main/hpatches-sequences-release.zip
-unzip hpatches-sequences-release.zip
-cd ../..
-```
-
 **⚠️ HPatches publica dos datasets distintos bajo el mismo paper — asegurate de tener el correcto:**
 
 | Archivo | Contenido | ¿Sirve para este framework? |
@@ -96,7 +86,7 @@ Si tras extraer ves archivos `eX.png`/`hX.png`/`tX.png`/`ref.png` en lugar de `1
 
 ### Otros datasets (IMC, Mismatched, casos límite)
 
-Ver `docs/datasets.md` para el contrato de cada dataset y qué loader implementa cada uno. Si el loader todavía no existe para el dataset que necesitás, ver `CONTRIBUTE.md`, sección "Añadir un Dataset".
+Ver `docs/datasets.md` para el contrato de cada dataset y qué loader implementa cada uno. Si el loader todavía no existe para el dataset que necesitas, ver `CONTRIBUTE.md`, sección "Añadir un Dataset".
 
 ---
 
@@ -124,7 +114,7 @@ Guarda un CSV por par y un CSV resumen en `outputs/metrics/`.
 
 ## Paso 6 — Primera ejecución (descarga de pesos)
 
-La **primera vez** que corrás una pipeline, Kornia descarga automáticamente los pesos de ALIKED/LightGlue/SuperPoint/DISK desde internet (~50 MB en total). Las ejecuciones siguientes los usan desde la caché local y no requieren conexión.
+La **primera vez** que corras una pipeline, Kornia descarga automáticamente los pesos de ALIKED/LightGlue/SuperPoint/DISK desde internet (~50 MB en total). Las ejecuciones siguientes los usan desde la caché local y no requieren conexión.
 
 XFeat es la excepción: sus pesos (`weights/xfeat.pt`) vienen incluidos en el repositorio clonado en el Paso 3, no se descargan por separado.
 
@@ -164,10 +154,10 @@ python run_pipeline.py --method aliked_lg \
 → Asegurate de tener el entorno virtual activado antes de instalar y ejecutar.
 
 **`kornia.feature.ALIKED` no encontrado**
-→ Tu versión de Kornia es antigua. Actualizá con: `pip install -U kornia`
+→ Tu versión de Kornia es antigua. Actualiza con: `pip install -U kornia`
 
 **`ModuleNotFoundError: No module named 'modules'` al usar `--method xfeat_lg`**
-→ No es una instalación faltante. XFeat usa el nombre de paquete genérico `modules`, que puede ser interceptado por el finder de otro paquete instalado en modo editable (p. ej. LightGlue) antes de que Python llegue a buscarlo en `sys.path`. `src/pipelines/xfeat_lightglue.py` ya implementa la solución (carga explícita vía `importlib` con registro directo en `sys.modules`) — si ves este error, verificá que estás usando la versión actual de ese archivo, no una copia anterior.
+→ No es una instalación faltante. XFeat usa el nombre de paquete genérico `modules`, que puede ser interceptado por el finder de otro paquete instalado en modo editable (p. ej. LightGlue) antes de que Python llegue a buscarlo en `sys.path`. `src/pipelines/xfeat_lightglue.py` ya implementa la solución (carga explícita vía `importlib` con registro directo en `sys.modules`) — si ves este error, verificá que estas usando la versión actual de ese archivo, no una copia anterior.
 
 **`cv2.error: ... !_src.empty() in function 'cvtColor'`**
 → `cv2.imread()` devolvió `None` porque la imagen no existe en la ruta dada o el archivo está corrupto/vacío — `cv2.imread` no lanza una excepción por sí mismo, solo un `WARN` en el log. Verificá la ruta con `ls` antes de asumir que es un bug de la pipeline.
