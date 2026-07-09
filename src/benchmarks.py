@@ -81,6 +81,7 @@ def evaluate_pair(pipeline, pair, device: torch.device) -> dict:
     """Run the pipeline on a single pair and compute whatever metrics that
     pair's ground truth supports.
     """
+
     image0, _ = load_image_rgb(str(pair.image0_path), device)
     image1, _ = load_image_rgb(str(pair.image1_path), device)
 
@@ -201,7 +202,7 @@ def main():
         match (args.dataset):
             case "hpatches":
                 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-                args.data_root = PROJECT_ROOT / "datasets" / "HPatches" / "hpatches-sequences-release"
+                args.data_root = PROJECT_ROOT / "datasets" / "hpatches" / "hpatches-sequences-release"
             case _:
                 raise ValueError(f"Unknown dataset: {args.dataset}")
 
