@@ -211,7 +211,7 @@ def main():
     output_path = (
         Path(args.output)
         if args.output
-        else Path("../outputs/metrics") / f"{args.dataset}_{args.method}.csv"
+        else Path("outputs/metrics") / f"{args.dataset}_{args.method}.csv"
     )
 
     per_pair_metrics = [evaluate_pair(pipeline, pair, device) for pair in dataset]
