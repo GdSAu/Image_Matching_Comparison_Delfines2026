@@ -131,9 +131,33 @@ def relative_pose_error(
     if essential is None:
         return 180.0, 180.0
 
-    _, rotation_est, translation_est, _ = cv2.recoverPose(
-        essential, points0, points1, np.eye(3), mask=mask
-    )
+    # cv2.findEssentialMat puede devolver más de una matriz 3x3 apilada
+    # verticalmente (p. ej. shape (6, 3) o (9, 3)) cuando la configuración
+    # de puntos es casi degenerada (poca paralaje entre cámaras, puntos
+    # casi coplanares) -- común en datasets "in the wild" como IMC, a
+    # diferencia de escenas planas tipo HPatches. cv2.recoverPose exige una
+    # matriz 3x3 exacta, así que probamos cada candidata y nos quedamos con
+    # la que recupere más inliers.
+    num_candidates = essential.shape[0] // 3
+    best_num_inliers = -1
+    best_rotation_est = None
+    best_translation_est = None
+
+    for i in range(num_candidates):
+        essential_candidate = essential[i * 3 : (i + 1) * 3]
+        num_inliers, rotation_candidate, translation_candidate, _ = cv2.recoverPose(
+            essential_candidate, points0, points1, np.eye(3), mask=mask.copy()
+        )
+        if num_inliers > best_num_inliers:
+            best_num_inliers = num_inliers
+            best_rotation_est = rotation_candidate
+            best_translation_est = translation_candidate
+
+    if best_rotation_est is None:
+        return 180.0, 180.0
+
+    rotation_est = best_rotation_est
+    translation_est = best_translation_est
 
     cos_rotation = (np.trace(rotation_gt.T @ rotation_est) - 1) / 2
     rotation_error = np.degrees(np.arccos(np.clip(cos_rotation, -1.0, 1.0)))

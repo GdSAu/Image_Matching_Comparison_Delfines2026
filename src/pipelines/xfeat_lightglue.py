@@ -31,7 +31,7 @@ import torch
 # necesidad de identificar exactamente cuál es.
 
 ROOT = Path(__file__).resolve().parents[1]
-XFEAT_ROOT = ROOT / "models" / "XFeat"
+XFEAT_ROOT = ROOT / "models" / "XFeat" / "accelerated_features"
 
 
 def _cargar_paquete_modules_de_xfeat() -> None:
