@@ -34,6 +34,11 @@ El comando varía según tu sistema y si tenés GPU con CUDA.
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 ```
 
+### Con GPU NVIDIA (CUDA 13.2)
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu132
+```
+
 ### Con GPU NVIDIA (CUDA 12.1)
 ```bash
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
@@ -84,6 +89,90 @@ Si tras extraer ves archivos `eX.png`/`hX.png`/`tX.png`/`ref.png` en lugar de `1
 
 `HPatchesDataset` excluye por defecto 8 secuencias con homografías poco confiables (convención D2-Net) — ver `docs/datasets.md` para el detalle y la justificación. Esto deja 108 secuencias × 5 pares = 540 pares evaluados.
 
+
+### Image Matching Challenge (IMC_2025)
+
+## 1. Instalar la CLI de Kaggle
+
+```bash
+pip install kaggle
+```
+Esto instala el comando `kaggle`, que se usa para descargar competencias y
+datasets directamente desde la terminal sin pasar por el navegador.
+
+## 2. Aceptar las reglas de la competencia
+
+Kaggle exige haberse registrado en la competencia (aceptar sus reglas)
+**antes** de poder descargar sus datos vía API — si te saltás este paso,
+la descarga falla con un error 403, aunque tus credenciales estén bien.
+
+1. Iniciar sesión en Kaggle.
+2. Entrar a la página de la competencia y aceptar las reglas:
+   `https://www.kaggle.com/competitions/image-matching-challenge-2025/rules`
+
+## 3. Generar el token de la API
+
+1. Ir a `https://www.kaggle.com/settings` → sección **API**.
+2. Click en **"Generate New Token"**. Esto crea un token de formato:
+   ```json
+   {export KAGGLE_API_TOKEN=KGAT_"tu_token"}
+   ```
+3. Poner tu token en la terminal.
+```bash
+export KAGGLE_API_TOKEN=("TU_TOKEN_GENERADO")
+```
+
+## 4. Descargar y descomprimir el dataset
+
+```bash
+cd ~/kc/Image_Matching_Delfines
+
+kaggle competitions download -c image-matching-challenge-2025 -p datasets/
+
+mkdir -p datasets/IMC_2025
+unzip datasets/image-matching-challenge-2025.zip -d datasets/IMC_2025
+```
+
+**Nota de espacio en disco:** el zip descargado pesa varios GB y, una vez
+descomprimido, el dataset ocupa considerablemente más — confirmar espacio
+libre suficiente antes de descomprimir (`df -h .`). Una vez verificado que
+`datasets/IMC_2025/` quedó completo, el `.zip` se puede borrar para
+liberar espacio:
+
+```bash
+rm datasets/image-matching-challenge-2025.zip
+```
+## 5. Verificar la estructura resultante
+
+```bash
+ls datasets/IMC_2025
+```
+
+Debería verse:
+
+```
+IMC_2025/
+    train_labels.csv
+    train_thresholds.csv
+    sample_submission.csv
+    train/
+        <dataset_name>/
+            LICENSE.txt
+            <scene_prefix>_<...>.png
+            ...
+    test/
+        <dataset_name>/
+            <scene_prefix>_<...>.png
+            ...
+```
+
+Si la estructura coincide, el dataset está listo para usarse con:
+
+```bash
+python src/benchmarks.py --method aliked_lg --dataset imc --data-root datasets/IMC_2025 --max-size 1024
+```
+
+
 ### Otros datasets (IMC, Mismatched, casos límite)
 
 Ver `docs/datasets.md` para el contrato de cada dataset y qué loader implementa cada uno. Si el loader todavía no existe para el dataset que necesitas, ver `CONTRIBUTE.md`, sección "Añadir un Dataset".
@@ -104,7 +193,7 @@ Si todo está bien, vas a ver el conteo de matches/inliers impreso en consola y 
 
 **Dataset completo, sin visualización:**
 ```bash
-python benchmarks.py --method aliked_lg --dataset hpatches \
+python benchmarks.py --method aliked_lg --dataset hpatches
     --data-root ../datasets/hpatches/hpatches-sequences-release
 ```
 
@@ -129,21 +218,14 @@ python3 -m venv .venv && source .venv/bin/activate
 # 2. PyTorch — elige uno según tu caso:
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu   # CPU
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121 # GPU CUDA 12.1
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu132 # GPU CUDA 13.2
 
 # 3. Resto de dependencias + repos vendored (LightGlue, XFeat)
-bash setup.sh
-
-# 4. Dataset de prueba (HPatches)
-mkdir -p datasets/hpatches && cd datasets/hpatches
-wget https://huggingface.co/datasets/vbalnt/hpatches/resolve/main/hpatches-sequences-release.zip
-unzip hpatches-sequences-release.zip
-cd ../..
+bash setup.sh --datasets
 
 # 5. Verificar
 cd src
-python run_pipeline.py --method aliked_lg \
-    --img1 ../datasets/hpatches/hpatches-sequences-release/i_ajuntament/1.ppm \
-    --img2 ../datasets/hpatches/hpatches-sequences-release/i_ajuntament/2.ppm
+python run_pipeline.py --method aliked_lg --img1 ../datasets/hpatches/hpatches-sequences-release/i_ajuntament/1.ppm img2 ../datasets/hpatches/hpatches-sequences-release/i_ajuntament/2.ppm
 ```
 
 ---
