@@ -24,10 +24,10 @@ import torch
 
 from dataset_interface import GroundTruthKind, HPatchesDataset, ImagePairDataset
 from metrics import (
+    epipolar_errors_px,
     homography_reprojection_errors,
     inlier_ratio,
     mean_average_accuracy,
-    relative_pose_error,
 )
 from pipelines.aliked_lightglue import AlikedLightGlue
 from pipelines.disk_lightglue import DiskLightGlue
@@ -131,8 +131,8 @@ def evaluate_pair(pipeline, pair, device: torch.device, max_size: int | None = N
         errors = homography_reprojection_errors(matched0, matched1, gt.homography)
         metrics["mAA"] = mean_average_accuracy(errors, HOMOGRAPHY_THRESHOLDS_PX)
         metrics["accuracy@3px"] = float(np.mean(errors <= 3))
-    elif gt.kind == GroundTruthKind.POSE and n_matches >= 5:
-        rotation_error, translation_error = relative_pose_error(
+    elif gt.kind == GroundTruthKind.POSE and n_matches > 0:
+        errors = epipolar_errors_px(
             matched0,
             matched1,
             gt.intrinsics0,
@@ -140,10 +140,8 @@ def evaluate_pair(pipeline, pair, device: torch.device, max_size: int | None = N
             gt.rotation,
             gt.translation,
         )
-        pose_error = max(rotation_error, translation_error)
-        metrics["mAA"] = mean_average_accuracy([pose_error], POSE_THRESHOLDS_DEG)
-        metrics["rotation_error_deg"] = rotation_error
-        metrics["translation_error_deg"] = translation_error
+        metrics["mAA"] = mean_average_accuracy(errors, HOMOGRAPHY_THRESHOLDS_PX)
+        metrics["accuracy@3px"] = float(np.mean(errors <= 3))
 
     return metrics
 
