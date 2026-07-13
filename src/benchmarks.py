@@ -24,10 +24,10 @@ import torch
 
 from dataset_interface import GroundTruthKind, HPatchesDataset, ImagePairDataset
 from metrics import (
+    epipolar_errors_px,
     homography_reprojection_errors,
     inlier_ratio,
     mean_average_accuracy,
-    relative_pose_error,
 )
 from pipelines.aliked_lightglue import AlikedLightGlue
 from pipelines.disk_lightglue import DiskLightGlue
@@ -62,11 +62,12 @@ def build_dataset(name: str, data_root: Path) -> ImagePairDataset:
     (HPatches, IMC, Mismatched, edge-case sets, ...).
     """
     from dataset_interface import FolderPairsDataset
+    from dataset_imc import IMCDataset
 
     registry = {
         "folder": FolderPairsDataset,
         "hpatches": HPatchesDataset,
-        # "imc": IMCDataset,                 # TODO
+        "imc": IMCDataset,
         # "mismatched": MismatchedDataset,   # TODO
     }
     if name not in registry:
@@ -77,12 +78,24 @@ def build_dataset(name: str, data_root: Path) -> ImagePairDataset:
     return registry[name](data_root)
 
 
-def evaluate_pair(pipeline, pair, device: torch.device) -> dict:
+def evaluate_pair(pipeline, pair, device: torch.device, max_size: int | None = None) -> dict:
     """Run the pipeline on a single pair and compute whatever metrics that
     pair's ground truth supports.
+
+    `max_size`, si se especifica, redimensiona ambas imágenes (lado más
+    largo) antes de pasarlas al pipeline -- útil para datasets como IMC2025
+    que traen fotos en resolución nativa (a veces varios miles de píxeles)
+    y pueden generar OOM en modelos como ALIKED que operan a resolución
+    completa. Los matches se reescalan de vuelta a coordenadas de la imagen
+    ORIGINAL antes de calcular cualquier métrica, así que el ground truth
+    (homografía de HPatches, intrínsecas de IMC) no se ve afectado.
     """
-    image0, _ = load_image_rgb(str(pair.image0_path), device)
-    image1, _ = load_image_rgb(str(pair.image1_path), device)
+    image0, _, scale0 = load_image_rgb(
+        str(pair.image0_path), device, max_size=max_size, return_scale=True
+    )
+    image1, _, scale1 = load_image_rgb(
+        str(pair.image1_path), device, max_size=max_size, return_scale=True
+    )
 
     start = time.perf_counter()
     result = pipeline.run(image0, image1)
@@ -90,6 +103,14 @@ def evaluate_pair(pipeline, pair, device: torch.device) -> dict:
 
     matched0 = result["matched0"].detach().cpu().numpy()
     matched1 = result["matched1"].detach().cpu().numpy()
+
+    # Vuelta a coordenadas de la imagen original -- el ground truth (H,
+    # intrínsecas) siempre está expresado a esa resolución, sin importar a
+    # qué tamaño haya visto el modelo la imagen internamente.
+    if scale0 != 1.0 and len(matched0) > 0:
+        matched0 = matched0 / scale0
+    if scale1 != 1.0 and len(matched1) > 0:
+        matched1 = matched1 / scale1
 
     mask = (
         compute_fundamental_inliers(matched0, matched1) if len(matched0) > 0 else None
@@ -110,8 +131,8 @@ def evaluate_pair(pipeline, pair, device: torch.device) -> dict:
         errors = homography_reprojection_errors(matched0, matched1, gt.homography)
         metrics["mAA"] = mean_average_accuracy(errors, HOMOGRAPHY_THRESHOLDS_PX)
         metrics["accuracy@3px"] = float(np.mean(errors <= 3))
-    elif gt.kind == GroundTruthKind.POSE and n_matches >= 5:
-        rotation_error, translation_error = relative_pose_error(
+    elif gt.kind == GroundTruthKind.POSE and n_matches > 0:
+        errors = epipolar_errors_px(
             matched0,
             matched1,
             gt.intrinsics0,
@@ -119,12 +140,8 @@ def evaluate_pair(pipeline, pair, device: torch.device) -> dict:
             gt.rotation,
             gt.translation,
         )
-        pose_error = max(rotation_error, translation_error)
-        metrics["mAA"] = mean_average_accuracy([pose_error], POSE_THRESHOLDS_DEG)
-        metrics["rotation_error_deg"] = rotation_error
-        metrics["translation_error_deg"] = translation_error
-    # gt.kind == NONE (or too few matches to score): only the
-    # ground-truth-free metrics above are reported for this pair.
+        metrics["mAA"] = mean_average_accuracy(errors, HOMOGRAPHY_THRESHOLDS_PX)
+        metrics["accuracy@3px"] = float(np.mean(errors <= 3))
 
     return metrics
 
@@ -186,6 +203,15 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="CSV path for per-pair results (default: outputs/metrics/).",
     )
+    parser.add_argument(
+    "--max-size",
+    type=int,
+    default=None,
+    help="Redimensiona el lado más largo de cada imagen a este valor antes "
+         "de pasarla al pipeline (preserva aspect ratio). Los matches se "
+         "reescalan de vuelta a resolución original para las métricas. "
+         "Default: sin redimensionar (comportamiento actual).",
+)
     return parser.parse_args()
 
 
@@ -206,7 +232,7 @@ def main():
         else Path("../outputs/metrics") / f"{args.dataset}_{args.method}.csv"
     )
 
-    per_pair_metrics = [evaluate_pair(pipeline, pair, device) for pair in dataset]
+    per_pair_metrics = [evaluate_pair(pipeline, pair, device, max_size=args.max_size) for pair in dataset]
 
     if not per_pair_metrics:
         print("Dataset produced no pairs — nothing to report.")
