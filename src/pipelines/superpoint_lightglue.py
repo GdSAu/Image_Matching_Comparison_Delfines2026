@@ -1,25 +1,27 @@
 import torch
 from lightglue import LightGlue, SuperPoint
 
+from utils.cudnn import cudnn_disabled
+
 
 class SuperPointLightGlue:
     def __init__(
         self,
         device,
         max_keypoints=2048,
+        disable_cudnn_workaround=False,
     ):
-
         self.device = device
+        self.disable_cudnn_workaround = disable_cudnn_workaround
 
-        torch.backends.cudnn.enabled = False
-
-        self.extractor = (
-            SuperPoint(
-                max_num_keypoints=max_keypoints,
+        with cudnn_disabled(disable_cudnn_workaround):
+            self.extractor = (
+                SuperPoint(
+                    max_num_keypoints=max_keypoints,
+                )
+                .eval()
+                .to(device)
             )
-            .eval()
-            .to(device)
-        )
 
         self.matcher = (
             LightGlue(
@@ -35,9 +37,9 @@ class SuperPointLightGlue:
         img0,
         img1,
     ):
-
-        feats0 = self.extractor.extract(img0)
-        feats1 = self.extractor.extract(img1)
+        with cudnn_disabled(self.disable_cudnn_workaround):
+            feats0 = self.extractor.extract(img0)
+            feats1 = self.extractor.extract(img1)
 
         prediction = self.matcher(
             {

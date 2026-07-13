@@ -1,28 +1,32 @@
 import kornia.feature as KF
 import torch
 
+from utils.cudnn import cudnn_disabled
+
 
 class AlikedLightGlue:
     def __init__(
         self,
         device,
         max_keypoints=2048,
+        model_name="aliked-n16rot",
         detection_threshold=0.01,
         nms_radius=3,
+        disable_cudnn_workaround=False,
     ):
-
         self.device = device
+        self.disable_cudnn_workaround = disable_cudnn_workaround
 
-        # Temporary workaround for the cuDNN bug
-        torch.backends.cudnn.enabled = False
-
-        self.extractor = KF.ALIKED.from_pretrained(
-            model_name="aliked-n16rot",
-            max_num_keypoints=max_keypoints,
-            detection_threshold=detection_threshold,
-            nms_radius=nms_radius,
-            device=device,
-        )
+        # Ver utils/cudnn.py y pipelines/disk_lightglue.py para el
+        # diagnóstico completo del bug de cuDNN en este entorno.
+        with cudnn_disabled(disable_cudnn_workaround):
+            self.extractor = KF.ALIKED.from_pretrained(
+                model_name=model_name,
+                max_num_keypoints=max_keypoints,
+                detection_threshold=detection_threshold,
+                nms_radius=nms_radius,
+                device=device,
+            )
 
         self.matcher = KF.LightGlue("aliked").eval().to(device)
 
@@ -32,9 +36,9 @@ class AlikedLightGlue:
         img0,
         img1,
     ):
-
-        feats0 = self.extractor(img0)[0]
-        feats1 = self.extractor(img1)[0]
+        with cudnn_disabled(self.disable_cudnn_workaround):
+            feats0 = self.extractor(img0)[0]
+            feats1 = self.extractor(img1)[0]
 
         image0 = {
             "keypoints": feats0.keypoints.unsqueeze(0),

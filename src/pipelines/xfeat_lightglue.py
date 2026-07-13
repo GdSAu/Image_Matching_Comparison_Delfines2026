@@ -2,9 +2,9 @@ import importlib.util
 import sys
 from pathlib import Path
 
-import cv2
-import numpy as np
 import torch
+
+from utils.cudnn import cudnn_disabled
 
 # ---------------------------------------------------------------------
 # Cargar el paquete `modules` de XFeat de forma explícita
@@ -60,25 +60,26 @@ def _cargar_paquete_modules_de_xfeat() -> None:
 
 _cargar_paquete_modules_de_xfeat()
 
-from modules.xfeat import XFeat
+from modules.xfeat import XFeat  # noqa: E402
 
 
 class XFeatLightGlue:
     def __init__(
         self,
         device="cuda",
-        top_k=4096,
+        max_keypoints=4096,
+        disable_cudnn_workaround=False,
     ):
-
         self.device = device
-        self.top_k = top_k
+        self.max_keypoints = max_keypoints
+        self.disable_cudnn_workaround = disable_cudnn_workaround
 
-        # Temporary workaround for the cuDNN bug
-        torch.backends.cudnn.enabled = False
-
-        self.model = XFeat(
-            top_k=top_k,
-        )
+        # Ver utils/cudnn.py y pipelines/disk_lightglue.py para el
+        # diagnóstico completo del bug de cuDNN en este entorno.
+        with cudnn_disabled(disable_cudnn_workaround):
+            self.model = XFeat(
+                top_k=max_keypoints,
+            )
 
     @torch.inference_mode()
     def run(
@@ -91,8 +92,9 @@ class XFeatLightGlue:
         # Extract XFeat features
         # --------------------------------------------------------------
 
-        feats0 = self.model.detectAndCompute(img0)[0]
-        feats1 = self.model.detectAndCompute(img1)[0]
+        with cudnn_disabled(self.disable_cudnn_workaround):
+            feats0 = self.model.detectAndCompute(img0)[0]
+            feats1 = self.model.detectAndCompute(img1)[0]
 
         feats0["image_size"] = (
             img0.shape[-1],  # width
@@ -113,27 +115,12 @@ class XFeatLightGlue:
             feats1,
         )
 
-        # --------------------------------------------------------------
-        # Geometric verification
-        # --------------------------------------------------------------
-
-        if len(mkpts0) >= 8:
-            _, mask = cv2.findFundamentalMat(
-                mkpts0,
-                mkpts1,
-                cv2.USAC_MAGSAC,
-                1.5,
-                0.999,
-                100000,
-            )
-
-            if mask is None:
-                inliers = np.ones(len(mkpts0), dtype=bool)
-            else:
-                inliers = mask.ravel().astype(bool)
-
-        else:
-            inliers = np.ones(len(mkpts0), dtype=bool)
+        # NOTA: la verificación geométrica (RANSAC + inlier_ratio) se
+        # calcula de forma centralizada en utils/geometry.py, con los
+        # mismos parámetros de config.toml para las 5 pipelines. No
+        # duplicar RANSAC acá: hacerlo con un umbral propio (como se
+        # hacía antes, 1.5 px) rompe la comparabilidad si algún día se
+        # empieza a consumir este resultado en vez del centralizado.
 
         return {
             "features0": feats0,
@@ -141,5 +128,4 @@ class XFeatLightGlue:
             "matches": matches,
             "matched0": torch.from_numpy(mkpts0).to(self.device),
             "matched1": torch.from_numpy(mkpts1).to(self.device),
-            "inliers": inliers,
         }

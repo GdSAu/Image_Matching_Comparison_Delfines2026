@@ -44,8 +44,8 @@ venv.bak/
 .ruff_cache/
 
 # Project-Specific
-datasets/*
-outputs/**
-src/models/*
+datasets/
+outputs/
+src/models/
 
 .pytest_cache/
