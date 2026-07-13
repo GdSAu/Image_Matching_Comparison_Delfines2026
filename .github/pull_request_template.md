@@ -16,24 +16,6 @@ Provide a brief summary of the changes introduced by this pull request.
 
 ---
 
-## What was changed?
-
-Describe the main changes.
-
--
-
--
-
--
-
----
-
-## Why was this change needed?
-
-Explain the motivation behind the changes.
-
----
-
 ## How was this tested?
 
 Describe how you verified the changes.

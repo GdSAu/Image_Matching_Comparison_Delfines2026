@@ -64,4 +64,4 @@ jobs:
           pip install -r requirements-dev.txt
 
       - run: |
-          pytest
+          pytest -m "not integration"

@@ -1,0 +1,86 @@
+# Configuración del framework de benchmarking Image Matching Delfines.
+#
+# Distinción central (ver docs/methodology.md):
+#   [protocol]      -> parámetros que afectan la comparabilidad entre
+#                       pipelines. Deben ser IDÉNTICOS para los 5 métodos
+#                       en una misma corrida. Este bloque es, en esencia,
+#                       la sección de metodología del paper.
+#   [method.<name>] -> parámetros de implementación específicos de cada
+#                       pipeline (checkpoints, workarounds de entorno,
+#                       hiperparámetros propios de un detector) que NO
+#                       afectan la comparabilidad entre métodos.
+#
+# El valor efectivo usado en cada corrida se serializa como sidecar junto
+# al CSV de resultados (ver config.py::save_effective_config) para
+# trazabilidad — nunca hay que inferir con qué configuración se generó
+# un CSV.
+
+[protocol]
+
+# --- Resolución de entrada ---
+# Lado mayor máximo, en píxeles, antes de aplicar downscaling. Se aplica
+# de forma idéntica a las imágenes de TODOS los métodos, antes de que
+# cualquier pipeline las reciba (ver utils/image.py::load_image_rgb).
+# Las coordenadas de keypoints/matches se reproyectan a la resolución
+# ORIGINAL antes de calcular cualquier métrica (RANSAC, reprojection
+# error, pose error), para que el umbral en píxeles siempre se interprete
+# en las mismas unidades sin importar si una imagen fue reescalada.
+# None desactiva el límite (no recomendado si el dataset incluye
+# imágenes grandes, p. ej. IMC).
+max_image_size = 1024
+resize_interpolation = "bilinear"  # "bilinear" | "bicubic" | "nearest"
+
+# --- Presupuesto de keypoints ---
+# "fixed": los 5 métodos extraen como máximo max_keypoints puntos, sin
+#   importar su configuración "nativa" recomendada. Aísla la calidad del
+#   descriptor/matcher del efecto de "más puntos → más matches".
+# "per_method_default": cada método usa el valor que tenga definido en su
+#   propia tabla [method.<name>] (o su default de librería si no lo
+#   define). Mide cada método "como sus autores lo pensaron", a costa de
+#   que las diferencias en n_matches reflejen en parte esta elección.
+# Ver discusión de metodología antes de cambiar esto a mitad de un
+# estudio: es una decisión que debe fijarse una vez y documentarse.
+keypoint_budget_policy = "fixed"
+max_keypoints = 2048
+
+# --- RANSAC: matriz fundamental (geometry.py::compute_fundamental_inliers) ---
+# Usado para inlier_ratio y n_inliers en TODOS los datasets.
+fundamental_ransac_threshold_px = 1.0
+fundamental_ransac_confidence = 0.999
+fundamental_ransac_max_iters = 100_000
+
+# --- RANSAC: matriz esencial (metrics.py::relative_pose_error) ---
+# Usado solo en datasets con ground truth de tipo POSE (IMC, Mismatched).
+# El umbral está en coordenadas normalizadas/calibradas, por lo que NO es
+# comparable numéricamente con fundamental_ransac_threshold_px de arriba
+# (unidades distintas: normalizado vs. píxeles de imagen).
+essential_ransac_threshold = 1e-3
+essential_ransac_confidence = 0.999
+
+# --- Reproducibilidad ---
+random_seed = 42
+
+
+# ============================================================
+# Configuración por método (no afecta comparabilidad)
+# ============================================================
+
+[method.sift_lg]
+# SIFT no usa PyTorch para la extracción (solo cv2 + LightGlue para el
+# matching), por lo que no necesita el workaround de cuDNN.
+
+[method.aliked_lg]
+disable_cudnn_workaround = true
+model_name = "aliked-n16rot"
+detection_threshold = 0.01
+nms_radius = 3
+
+[method.disk_lg]
+disable_cudnn_workaround = true
+checkpoint = "depth"
+
+[method.superpoint_lg]
+disable_cudnn_workaround = true
+
+[method.xfeat_lg]
+disable_cudnn_workaround = true

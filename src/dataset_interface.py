@@ -118,9 +118,14 @@ class FolderPairsDataset(ImagePairDataset):
 
         self._pairs: list[tuple[str, Path, Path]] = []
         for stem in stems:
-            image_a = next(self.root.glob(f"{stem}_a.*"))
-            image_b = next(self.root.glob(f"{stem}_b.*"))
-            self._pairs.append((stem, image_a, image_b))
+            matches_a = list(self.root.glob(f"{stem}_a.*"))
+            matches_b = list(self.root.glob(f"{stem}_b.*"))
+            if not matches_a or not matches_b:
+                raise FileNotFoundError(
+                    f"Par incompleto para '{stem}' en {self.root}: falta "
+                    f"'{stem}_a.*' o '{stem}_b.*'."
+                )
+            self._pairs.append((stem, matches_a[0], matches_b[0]))
 
         if not self._pairs:
             raise ValueError(

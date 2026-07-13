@@ -164,6 +164,8 @@ def relative_pose_error(
     intrinsics1: np.ndarray,
     rotation_gt: np.ndarray,
     translation_gt: np.ndarray,
+    ransac_threshold: float = 1e-3,
+    ransac_confidence: float = 0.999,
 ) -> tuple[float, float]:
     """Estimate the relative pose from matches and compare against ground
     truth, following the standard IMC / Mismatched-style protocol.
@@ -189,7 +191,12 @@ def relative_pose_error(
     ).reshape(-1, 2)
 
     essential, mask = cv2.findEssentialMat(
-        points0, points1, np.eye(3), method=cv2.RANSAC, threshold=1e-3
+        points0,
+        points1,
+        np.eye(3),
+        method=cv2.RANSAC,
+        prob=ransac_confidence,
+        threshold=ransac_threshold,
     )
     if essential is None:
         return 180.0, 180.0
