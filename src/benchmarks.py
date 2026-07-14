@@ -224,15 +224,6 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="CSV path for per-pair results (default: outputs/metrics/).",
     )
-    parser.add_argument(
-    "--max-size",
-    type=int,
-    default=None,
-    help="Redimensiona el lado más largo de cada imagen a este valor antes "
-         "de pasarla al pipeline (preserva aspect ratio). Los matches se "
-         "reescalan de vuelta a resolución original para las métricas. "
-         "Default: sin redimensionar (comportamiento actual).",
-)
     return parser.parse_args()
 
 
