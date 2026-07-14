@@ -9,7 +9,9 @@ _INTERPOLATION_MAP = {
 }
 
 
-def load_image_rgb(path, device, max_size=None, interpolation="bilinear", return_scale=True):
+def load_image_rgb(
+    path, device, max_size=None, interpolation="bilinear", return_scale=True
+):
     """Carga una imagen y la reescala si supera `max_size`.
 
     `max_size` y `interpolation` deben provenir de
@@ -30,7 +32,7 @@ def load_image_rgb(path, device, max_size=None, interpolation="bilinear", return
             imagen ya es más chica, no se toca. Default None = sin cambios,
             comportamiento idéntico al de siempre.
         interpolation: método de interpolación usado para reescalar la imagen.
-            Los valores aceptados son "bilinear", "bicubic" y "nearest", con "bilinear" 
+            Los valores aceptados son "bilinear", "bicubic" y "nearest", con "bilinear"
             como valor por defecto.
         return_scale: si True, devuelve también el factor de escala aplicado
             (1.0 si no hubo resize). Útil para reescalar los keypoints

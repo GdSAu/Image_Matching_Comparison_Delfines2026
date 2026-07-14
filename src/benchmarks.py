@@ -33,11 +33,9 @@ from pipelines.disk_lightglue import DiskLightGlue
 from pipelines.sift_lightglue import SiftLightGlue
 from pipelines.superpoint_lightglue import SuperPointLightGlue
 from pipelines.xfeat_lightglue import XFeatLightGlue
-
 from utils.config import resolve_effective_config
 from utils.geometry import compute_fundamental_inliers
 from utils.image import load_image_rgb
-
 
 PIPELINES = {
     "sift_lg": SiftLightGlue,
@@ -67,8 +65,8 @@ def build_dataset(name: str, data_root: Path) -> ImagePairDataset:
     """Registro de Datasets. Añade una nueva entrada cada vez que un adaptador
     nuevo es implementado (HPatches, IMC, etc).
     """
-    from dataset_interface import FolderPairsDataset
     from dataset_imc import IMC2025Dataset
+    from dataset_interface import FolderPairsDataset
 
     registry = {
         "folder": FolderPairsDataset,
@@ -81,24 +79,25 @@ def build_dataset(name: str, data_root: Path) -> ImagePairDataset:
             "Add a loader in src/datasets/ implementing ImagePairDataset."
         )
     return registry[name](data_root)
-    
+
+
 def evaluate_pair(pipeline, pair, device: torch.device, config) -> dict:
-    """Ejecuta la pipeline en un solo par de imágenes y calcula las métricas que el ground truth de 
-    ese par soporta.
+    """Ejecuta la pipeline en un solo par de imágenes y calcula las métricas
+    que el ground truth de ese par soporta.
     """
     image0, _, scale0 = load_image_rgb(
-        str(pair.image0_path), 
+        str(pair.image0_path),
         device,
         max_size=config.protocol.max_image_size,
         interpolation=config.protocol.resize_interpolation,
-        return_scale=True
+        return_scale=True,
     )
     image1, _, scale1 = load_image_rgb(
-        str(pair.image1_path), 
-        device, 
+        str(pair.image1_path),
+        device,
         max_size=config.protocol.max_image_size,
         interpolation=config.protocol.resize_interpolation,
-        return_scale=True
+        return_scale=True,
     )
 
     start = time.perf_counter()
@@ -144,8 +143,8 @@ def evaluate_pair(pipeline, pair, device: torch.device, config) -> dict:
             gt.intrinsics1,
             gt.rotation,
             gt.translation,
-            #ransac_threshold=config.protocol.essential_ransac_threshold,
-            #ransac_confidence=config.protocol.essential_ransac_confidence,
+            # ransac_threshold=config.protocol.essential_ransac_threshold,
+            # ransac_confidence=config.protocol.essential_ransac_confidence,
         )
         metrics["mAA"] = mean_average_accuracy(errors, HOMOGRAPHY_THRESHOLDS_PX)
         metrics["accuracy@3px"] = float(np.mean(errors <= 3))
@@ -230,13 +229,18 @@ def main():
 
     config = resolve_effective_config(args.method, args.config_root)
 
-    torch.manual_seed(config.protocol.random_seed) 
+    torch.manual_seed(config.protocol.random_seed)
 
-    if(args.data_root is None):
-        match (args.dataset):
+    if args.data_root is None:
+        match args.dataset:
             case "hpatches":
                 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-                args.data_root = PROJECT_ROOT / "datasets" / "hpatches" / "hpatches-sequences-release"
+                args.data_root = (
+                    PROJECT_ROOT
+                    / "datasets"
+                    / "hpatches"
+                    / "hpatches-sequences-release"
+                )  # noqa: E501
             case "imc2025":
                 PROJECT_ROOT = Path(__file__).resolve().parents[1]
                 args.data_root = PROJECT_ROOT / "datasets" / "imc2025" / ","
@@ -252,7 +256,9 @@ def main():
         else Path("outputs/metrics") / f"{args.dataset}_{args.method}.csv"
     )
 
-    per_pair_metrics = [evaluate_pair(pipeline, pair, device, config) for pair in dataset]
+    per_pair_metrics = [
+        evaluate_pair(pipeline, pair, device, config) for pair in dataset
+    ]
 
     if not per_pair_metrics:
         print("Dataset produced no pairs — nothing to report.")

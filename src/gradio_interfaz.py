@@ -1,24 +1,24 @@
 """
 Script 2: Interfaz Web Interactiva con Gradio
 =============================================
-Este script envuelve el pipeline ALIKED + LightGlue en una aplicaciÃ³n web
+Este script envuelve el pipeline ALIKED + LightGlue en una aplicación web
 que cualquier persona puede usar desde el navegador, sin necesidad de
 tocar la terminal.
 
-Â¿QuÃ© es Gradio?
+¿Qué es Gradio?
     Gradio es una biblioteca de Python que convierte funciones de Python en
-    interfaces web interactivas en pocas lÃ­neas de cÃ³digo. Es ampliamente
-    usada en la comunidad de IA para crear demos rÃ¡pidas de modelos.
-    Con Gradio puedes compartir tu aplicaciÃ³n con un enlace pÃºblico
-    temporal (usando el parÃ¡metro share=True).
+    interfaces web interactivas en pocas líneas de código. Es ampliamente
+    usada en la comunidad de IA para crear demos rápidas de modelos.
+    Con Gradio puedes compartir tu aplicación con un enlace público
+    temporal (usando el parámetro share=True).
 
-CÃ³mo funciona:
-    1. El usuario sube dos imÃ¡genes desde su navegador.
-    2. La aplicaciÃ³n corre el pipeline ALIKED + LightGlue.
+Cómo funciona:
+    1. El usuario sube dos imágenes desde su navegador.
+    2. La aplicación corre el pipeline ALIKED + LightGlue.
     3. Se muestra la imagen resultante con las correspondencias dibujadas
-       y estadÃ­sticas del resultado.
+       y estadísticas del resultado.
 
-EjecuciÃ³n:
+Ejecución:
     python 02_gradio_app.py
 
     Abre http://127.0.0.1:7860 en tu navegador.
@@ -40,26 +40,26 @@ import torch
 from dino_matching import DinoV3Matcher
 
 # ---------------------------------------------------------------------------
-# ConfiguraciÃ³n del pipeline
-# (Los mismos parÃ¡metros que en 01_aliked_lightglue.py, centralizados aquÃ­)
+# Configuración del pipeline
+# (Los mismos parámetros que en 01_aliked_lightglue.py, centralizados aquí­)
 # ---------------------------------------------------------------------------
 
-MAX_LADO = 1024  # TamaÃ±o mÃ¡ximo de la imagen antes de procesarla
-MAX_KEYPOINTS = 2048  # NÃºmero mÃ¡ximo de keypoints por imagen
-UMBRAL_DETECCION = 0.01  # Umbral de confianza mÃ­nima para detectar un keypoint
-RADIO_NMS = 3  # Distancia mÃ­nima entre keypoints (pÃ­xeles)
-UMBRAL_RANSAC = 1.5  # Tolerancia de reproyecciÃ³n en RANSAC (pÃ­xeles)
+MAX_LADO = 1024  # Tamaí±o máximo de la imagen antes de procesarla
+MAX_KEYPOINTS = 2048  # Número máximo de keypoints por imagen
+UMBRAL_DETECCION = 0.01  # Umbral de confianza mí­nima para detectar un keypoint
+RADIO_NMS = 3  # Distancia mí­nima entre keypoints (pí­xeles)
+UMBRAL_RANSAC = 1.5  # Tolerancia de reproyección en RANSAC (pí­xeles)
 MODELO_ALIKED = "ALIKED + LightGlue"
 MODELO_DINOV3 = "DINOv3 (parches visuales)"
 MODELO_TODOS = "Tres modelos en conjunto"
 
 
 # ---------------------------------------------------------------------------
-# InicializaciÃ³n de modelos (se hace UNA SOLA VEZ al arrancar la app)
+# Inicialización de modelos (se hace UNA SOLA VEZ al arrancar la app)
 #
 # Cargar los modelos es caro (descarga pesos + mueve tensores a GPU).
-# Si lo hiciÃ©ramos dentro de la funciÃ³n de inferencia, se repetirÃ­a en cada
-# solicitud del usuario, lo que serÃ­a muy lento.
+# Si lo hiciéramos dentro de la función de inferencia, se repetirí­a en cada
+# solicitud del usuario, lo que serí­a muy lento.
 # Al declarar los modelos en el scope global, se cargan una vez y se
 # reutilizan en todas las solicitudes.
 # ---------------------------------------------------------------------------
@@ -74,7 +74,7 @@ elif torch.backends.mps.is_available():
     print("  Apple MPS")
 else:
     DISPOSITIVO = torch.device("cpu")
-    print("  CPU (la inferencia serÃ¡ mÃ¡s lenta)")
+    print("  CPU (la inferencia será más lenta)")
 
 ALIKED = KF.ALIKED.from_pretrained(
     model_name="aliked-n16rot",
@@ -92,13 +92,13 @@ print("  Modelos listos.")
 
 # ---------------------------------------------------------------------------
 # Funciones del pipeline
-# (VersiÃ³n compacta de las funciones de 01_aliked_lightglue.py)
-# En un proyecto real estas funciones se importarÃ­an desde un mÃ³dulo compartido.
+# (Versión compacta de las funciones de 01_aliked_lightglue.py)
+# En un proyecto real estas funciones se importarí­an desde un módulo compartido.
 # ---------------------------------------------------------------------------
 
 
 def redimensionar_si_necesario(img_bgr: np.ndarray) -> np.ndarray:
-    """Reduce la imagen si algÃºn lado supera MAX_LADO, preservando aspecto."""
+    """Reduce la imagen si algún lado supera MAX_LADO, preservando aspecto."""
     h, w = img_bgr.shape[:2]
     if max(h, w) > MAX_LADO:
         escala = MAX_LADO / max(h, w)
@@ -113,7 +113,7 @@ def redimensionar_si_necesario(img_bgr: np.ndarray) -> np.ndarray:
 def bgr_a_tensor_gris(img_bgr: np.ndarray) -> torch.Tensor:
     """
     BGR uint8 â†’ tensor PyTorch (1, 1, H, W) float32 en [0, 1].
-    ALIKED espera imÃ¡genes en escala de grises normalizadas.
+    ALIKED espera imágenes en escala de grises normalizadas.
     """
     img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
     img_float = img_rgb.astype(np.float32) / 255.0
@@ -123,7 +123,7 @@ def bgr_a_tensor_gris(img_bgr: np.ndarray) -> torch.Tensor:
 
 def extraer_y_emparejar(img0_bgr: np.ndarray, img1_bgr: np.ndarray):
     """
-    Extrae caracterÃ­sticas con ALIKED y las empareja con LightGlue.
+    Extrae caracterí­sticas con ALIKED y las empareja con LightGlue.
     Devuelve los keypoints emparejados (antes de RANSAC).
     """
     t0 = bgr_a_tensor_gris(img0_bgr)
@@ -209,7 +209,7 @@ def combinar_correspondencias(
 def aplicar_ransac(mkpts0: np.ndarray, mkpts1: np.ndarray):
     """
     Filtra correspondencias incorrectas usando RANSAC + Matriz Fundamental.
-    Devuelve inliers y la mÃ¡scara booleana.
+    Devuelve inliers y la máscara booleana.
     """
     if len(mkpts0) < 8:
         return mkpts0, mkpts1, None
@@ -239,7 +239,7 @@ def dibujar_correspondencias(
     mkpts1_all: np.ndarray | None,
 ) -> np.ndarray:
     """
-    Genera la imagen compuesta con las dos imÃ¡genes lado a lado y las
+    Genera la imagen compuesta con las dos imágenes lado a lado y las
     correspondencias dibujadas (verde = inliers, rojo = outliers).
     """
     h0, w0 = img0_bgr.shape[:2]
@@ -251,7 +251,7 @@ def dibujar_correspondencias(
 
     # Outliers en rojo tenue
     if mkpts0_all is not None:
-        for pt0, pt1 in zip(mkpts0_all, mkpts1_all):
+        for pt0, pt1 in zip(mkpts0_all, mkpts1_all, strict=True):
             cv2.line(
                 canvas,
                 (int(pt0[0]), int(pt0[1])),
@@ -262,7 +262,7 @@ def dibujar_correspondencias(
             )
 
     # Inliers en verde
-    for pt0, pt1 in zip(mkpts0_in, mkpts1_in):
+    for pt0, pt1 in zip(mkpts0_in, mkpts1_in, strict=True):
         p0 = (int(pt0[0]), int(pt0[1]))
         p1 = (int(pt1[0]) + w0, int(pt1[1]))
         cv2.line(canvas, p0, p1, (0, 210, 0), 1, cv2.LINE_AA)
@@ -273,7 +273,7 @@ def dibujar_correspondencias(
 
 
 # ---------------------------------------------------------------------------
-# FunciÃ³n principal de inferencia (la que llama Gradio)
+# Función principal de inferencia (la que llama Gradio)
 # ---------------------------------------------------------------------------
 
 
@@ -368,19 +368,19 @@ def inferencia(
     """
     Punto de entrada para Gradio.
 
-    Gradio entrega las imÃ¡genes como arrays RGB de NumPy (dtype uint8).
+    Gradio entrega las imágenes como arrays RGB de NumPy (dtype uint8).
     Devolvemos:
         - Imagen resultado (RGB NumPy array) para el componente gr.Image
-        - Texto con las estadÃ­sticas del resultado para gr.Textbox
+        - Texto con las estadí­sticas del resultado para gr.Textbox
     """
     if img0_rgb is None or img1_rgb is None:
         raise gr.Error("Sube dos imagenes antes de ejecutar el emparejamiento.")
 
-    # Gradio pasa imÃ¡genes en RGB; convertimos a BGR para OpenCV
+    # Gradio pasa imágenes en RGB; convertimos a BGR para OpenCV
     img0_bgr = cv2.cvtColor(img0_rgb, cv2.COLOR_RGB2BGR)
     img1_bgr = cv2.cvtColor(img1_rgb, cv2.COLOR_RGB2BGR)
 
-    # Redimensionar si las imÃ¡genes son muy grandes
+    # Redimensionar si las imágenes son muy grandes
     img0_bgr = redimensionar_si_necesario(img0_bgr)
     img1_bgr = redimensionar_si_necesario(img1_bgr)
 
@@ -397,16 +397,18 @@ def inferencia(
 
 
 # ---------------------------------------------------------------------------
-# DefiniciÃ³n de la interfaz Gradio
+# Definición de la interfaz Gradio
 # ---------------------------------------------------------------------------
 
 with gr.Blocks(title="Image Matching â€” ALIKED + LightGlue") as demo:
     gr.Markdown("""
     # Image Matching con ALIKED + LightGlue y DINOv3
-    Sube dos fotos de la **misma escena desde Ã¡ngulos distintos** y el modelo
-    encontrarÃ¡ automÃ¡ticamente los puntos que corresponden al mismo lugar del mundo real.
+    Sube dos fotos de la **misma escena desde ángulos distintos** y el modelo
+    encontrará automáticamente los puntos que corresponden al mismo lugar del mundo 
+                real.
 
-    **Pipelines disponibles:** ALIKED + LightGlue para keypoints geomÃ©tricos, o DINOv3 para similitud visual local por parches.
+    **Pipelines disponibles:** ALIKED + LightGlue para keypoints geométricos, o 
+      DINOv3 para similitud visual local por parches.
 
     ---
     """)
@@ -429,7 +431,7 @@ with gr.Blocks(title="Image Matching â€” ALIKED + LightGlue") as demo:
         value=MODELO_TODOS,
     )
 
-    boton = gr.Button("Emparejar imÃ¡genes", variant="primary", size="lg")
+    boton = gr.Button("Emparejar imágenes", variant="primary", size="lg")
 
     resultado_img = gr.Image(
         label="Correspondencias encontradas",
@@ -438,7 +440,7 @@ with gr.Blocks(title="Image Matching â€” ALIKED + LightGlue") as demo:
     )
 
     resultado_texto = gr.Textbox(
-        label="EstadÃ­sticas",
+        label="Estadí­sticas",
         lines=6,
         interactive=False,
     )
@@ -446,20 +448,22 @@ with gr.Blocks(title="Image Matching â€” ALIKED + LightGlue") as demo:
     gr.Markdown("""
     ---
     ### Consejos para obtener buenos resultados
-    - Usa fotos del **mismo objeto o lugar** tomadas desde Ã¡ngulos distintos.
-    - AsegÃºrate de que haya **suficiente textura** (evita paredes lisas o cielos uniformes).
-    - Un solapamiento del **30%â€“70%** entre imÃ¡genes suele dar los mejores resultados.
-    - Si hay pocos inliers, prueba reduciendo el Ã¡ngulo entre las dos tomas.
+    - Usa fotos del **mismo objeto o lugar** tomadas desde ángulos distintos.
+    - Asegúrate de que haya **suficiente textura** (evita paredes lisas o 
+      cielos uniformes).
+    - Un solapamiento del **30% al 70%** entre imágenes suele dar los mejores 
+      resultados.
+    - Si hay pocos inliers, prueba reduciendo el ángulo entre las dos tomas.
     """)
 
-    # Conectar el botÃ³n con la funciÃ³n de inferencia
+    # Conectar el botón con la función de inferencia
     boton.click(
         fn=inferencia,
         inputs=[img0_input, img1_input, modelo_input],
         outputs=[resultado_img, resultado_texto],
     )
 
-    # Ejemplos opcionales: si pones imÃ¡genes de prueba en la carpeta, aparecerÃ¡n aquÃ­.
+    # Ejemplos opcionales: si pones imágenes de prueba en la carpeta, aparecerán aquí­.
     # gr.Examples(
     #     examples=[["img1.jpg", "img2.jpg"]],
     #     inputs=[img0_input, img1_input],
@@ -487,5 +491,5 @@ if __name__ == "__main__":
     demo.launch(
         server_name=os.getenv("GRADIO_SERVER_NAME", "127.0.0.1"),
         server_port=obtener_puerto_gradio(),
-        # share=True,            # descomenta para obtener un enlace pÃºblico temporal
+        # share=True,            # descomenta para obtener un enlace público temporal
     )

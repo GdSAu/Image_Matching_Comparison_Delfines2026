@@ -205,9 +205,9 @@ class IMC2025Dataset(ImagePairDataset):
         return len(self._pairs)
 
     def get_pair(self, index: int) -> ImagePair:
-        pair_id, image0_path, image1_path, rotation_rel, translation_rel = (
-            self._pairs[index]
-        )
+        pair_id, image0_path, image1_path, rotation_rel, translation_rel = self._pairs[
+            index
+        ]
 
         intrinsics0 = _approx_intrinsics(image0_path)
         intrinsics1 = _approx_intrinsics(image1_path)
