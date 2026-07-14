@@ -68,12 +68,12 @@ def build_dataset(name: str, data_root: Path) -> ImagePairDataset:
     nuevo es implementado (HPatches, IMC, etc).
     """
     from dataset_interface import FolderPairsDataset
-    from dataset_imc import IMCDataset
+    from dataset_imc import IMC2025Dataset
 
     registry = {
         "folder": FolderPairsDataset,
         "hpatches": HPatchesDataset,
-        "imc": IMCDataset,
+        "imc2025": IMC2025Dataset,
     }
     if name not in registry:
         raise ValueError(
@@ -144,8 +144,8 @@ def evaluate_pair(pipeline, pair, device: torch.device, config) -> dict:
             gt.intrinsics1,
             gt.rotation,
             gt.translation,
-            ransac_threshold=config.protocol.essential_ransac_threshold,
-            ransac_confidence=config.protocol.essential_ransac_confidence,
+            #ransac_threshold=config.protocol.essential_ransac_threshold,
+            #ransac_confidence=config.protocol.essential_ransac_confidence,
         )
         metrics["mAA"] = mean_average_accuracy(errors, HOMOGRAPHY_THRESHOLDS_PX)
         metrics["accuracy@3px"] = float(np.mean(errors <= 3))
@@ -237,6 +237,9 @@ def main():
             case "hpatches":
                 PROJECT_ROOT = Path(__file__).resolve().parents[1]
                 args.data_root = PROJECT_ROOT / "datasets" / "hpatches" / "hpatches-sequences-release"
+            case "imc2025":
+                PROJECT_ROOT = Path(__file__).resolve().parents[1]
+                args.data_root = PROJECT_ROOT / "datasets" / "imc2025" / ","
             case _:
                 raise ValueError(f"Unknown dataset: {args.dataset}")
 

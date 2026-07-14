@@ -1,7 +1,7 @@
 """Loader para el dataset IMC2025 (Kaggle Image Matching Challenge 2025).
 
 Este módulo vive separado de `dataset_interface.py` a propósito: HPatches
-(`HPatchesDataset`) y el resto de ese archivo no se tocan. `IMCDataset` solo
+(`HPatchesDataset`) y el resto de ese archivo no se tocan. `IMC2025Dataset` solo
 depende de las clases base (`ImagePairDataset`, `ImagePair`, `GroundTruth`,
 `GroundTruthKind`) que ya expone `dataset_interface.py`.
 
@@ -95,7 +95,7 @@ def _approx_intrinsics(image_path: Path) -> np.ndarray:
     )
 
 
-class IMCDataset(ImagePairDataset):
+class IMC2025Dataset(ImagePairDataset):
     """Loader para IMC2025, con pose relativa como ground truth
     (`GroundTruthKind.POSE`) e intrínsecas aproximadas por heurística.
 
@@ -125,7 +125,7 @@ class IMCDataset(ImagePairDataset):
         if not labels_path.exists():
             raise FileNotFoundError(
                 f"No se encontró {labels_path}. ¿La ruta --data-root apunta "
-                "a la carpeta IMC_2025/ (la que contiene train_labels.csv)?"
+                "a la carpeta imc2025/ (la que contiene train_labels.csv)?"
             )
 
         images_root = self.root / split
