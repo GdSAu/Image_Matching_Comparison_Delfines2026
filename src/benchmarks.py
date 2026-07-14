@@ -8,7 +8,7 @@ ground truth that dataset provides (homography, pose, or none); see
 datasets/base.py.
 
 Por ejemplo:
-    python src/benchmarks.py --method xfeat_lg --dataset hpatche
+    python src/benchmarks.py --method xfeat_lg --dataset hpatches
 """
 
 from __future__ import annotations
@@ -107,14 +107,6 @@ def evaluate_pair(pipeline, pair, device: torch.device, config) -> dict:
 
     matched0 = result["matched0"].detach().cpu().numpy() / scale0
     matched1 = result["matched1"].detach().cpu().numpy() / scale1
-
-    # Vuelta a coordenadas de la imagen original -- el ground truth (H,
-    # intrínsecas) siempre está expresado a esa resolución, sin importar a
-    # qué tamaño haya visto el modelo la imagen internamente.
-    if scale0 != 1.0 and len(matched0) > 0:
-        matched0 = matched0 / scale0
-    if scale1 != 1.0 and len(matched1) > 0:
-        matched1 = matched1 / scale1
 
     mask = (
         compute_fundamental_inliers(
