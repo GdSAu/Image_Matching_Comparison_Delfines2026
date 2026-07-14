@@ -1,5 +1,4 @@
 import cv2
-import numpy as np
 
 
 def compute_fundamental_inliers(
@@ -20,7 +19,12 @@ def compute_fundamental_inliers(
         return None
     try:
         F, mask = cv2.findFundamentalMat(
-            pts0, pts1, cv2.USAC_MAGSAC, threshold, confidence, max_iters,
+            pts0,
+            pts1,
+            cv2.USAC_MAGSAC,
+            threshold,
+            confidence,
+            max_iters,
         )
     except cv2.error:
         return None

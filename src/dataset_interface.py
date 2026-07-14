@@ -17,7 +17,7 @@ El ground truth varía según la familia de datasets a reproducir:
   accuracy/recall/mAA sin una referencia contra la cual comparar.
 
 Nota de reproducibilidad: cada subclase concreta (HPatchesDataset,
-IMCDataset, MismatchedDataset, ...) debe documentar en `docs/datasets.md`
+IMC2025Dataset, MismatchedDataset, ...) debe documentar en `docs/datasets.md`
 la versión exacta del dataset, el split utilizado y cualquier filtrado de
 escenas aplicado (p. ej. Mismatched excluye escenas sin registrar exitoso
 en su pipeline de SfM). Sin esa información los números del benchmark no

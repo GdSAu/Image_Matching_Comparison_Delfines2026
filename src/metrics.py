@@ -88,6 +88,7 @@ def homography_reprojection_errors(
 
     return np.linalg.norm(projected - matched1, axis=1)
 
+
 # ---------------------------------------------------------------------------
 # Pose-based error, en píxeles (variante recomendada para reportar
 # accuracy@Npx / mAA comparable con datasets de homografía)
@@ -153,9 +154,11 @@ def epipolar_errors_px(
 
     return np.sqrt(numerator / denominator)
 
+
 # ---------------------------------------------------------------------------
 # Pose-based error (IMC / Mismatched-style)
 # ---------------------------------------------------------------------------
+
 
 def relative_pose_error(
     matched0: np.ndarray,

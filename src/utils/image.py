@@ -9,7 +9,9 @@ _INTERPOLATION_MAP = {
 }
 
 
-def load_image_rgb(path, device, max_size=None, interpolation="bilinear"):
+def load_image_rgb(
+    path, device, max_size=None, interpolation="bilinear", return_scale=True
+):
     """Carga una imagen y la reescala si supera `max_size`.
 
     `max_size` y `interpolation` deben provenir de
@@ -21,8 +23,6 @@ def load_image_rgb(path, device, max_size=None, interpolation="bilinear"):
     es el factor aplicado (`resized = original * scale`; `scale == 1.0`
     si no hubo reescalado) — usarlo para reproyectar keypoints/matches a
     coordenadas originales antes de calcular cualquier métrica.
-def load_image_rgb(path, device, max_size=None, return_scale=False):
-    """Carga una imagen y la convierte a tensor RGB normalizado.
 
     Args:
         path: ruta a la imagen.
@@ -31,6 +31,9 @@ def load_image_rgb(path, device, max_size=None, return_scale=False):
             más largo no supere este valor (preserva aspect ratio). Si la
             imagen ya es más chica, no se toca. Default None = sin cambios,
             comportamiento idéntico al de siempre.
+        interpolation: método de interpolación usado para reescalar la imagen.
+            Los valores aceptados son "bilinear", "bicubic" y "nearest", con "bilinear"
+            como valor por defecto.
         return_scale: si True, devuelve también el factor de escala aplicado
             (1.0 si no hubo resize). Útil para reescalar los keypoints
             devueltos por el matcher de vuelta a coordenadas de la imagen
@@ -44,18 +47,6 @@ def load_image_rgb(path, device, max_size=None, return_scale=False):
             punto_en_imagen_original = punto_en_imagen_redimensionada / scale
     """
     img_bgr = cv2.imread(path)
-
-    scale = 1.0
-    if max_size is not None:
-        height, width = img_bgr.shape[:2]
-        longest_side = max(height, width)
-        if longest_side > max_size:
-            scale = max_size / longest_side
-            new_width = int(round(width * scale))
-            new_height = int(round(height * scale))
-            img_bgr = cv2.resize(
-                img_bgr, (new_width, new_height), interpolation=cv2.INTER_AREA
-            )
 
     img_rgb = cv2.cvtColor(
         img_bgr,
@@ -80,7 +71,6 @@ def load_image_rgb(path, device, max_size=None, return_scale=False):
         .to(device)
     )
 
-    return tensor, img_bgr, scale
     if return_scale:
         return tensor, img_bgr, scale
     return tensor, img_bgr

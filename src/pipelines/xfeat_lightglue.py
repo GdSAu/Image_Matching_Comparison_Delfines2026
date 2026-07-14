@@ -31,7 +31,7 @@ from utils.cudnn import cudnn_disabled
 # necesidad de identificar exactamente cuál es.
 
 ROOT = Path(__file__).resolve().parents[1]
-XFEAT_ROOT = ROOT / "models" / "XFeat" / "accelerated_features"
+XFEAT_ROOT = ROOT / "models" / "XFeat"
 
 
 def _cargar_paquete_modules_de_xfeat() -> None:
@@ -60,7 +60,6 @@ def _cargar_paquete_modules_de_xfeat() -> None:
 
 _cargar_paquete_modules_de_xfeat()
 
-from modules.xfeat import XFeat  # noqa: E402
 from modules.xfeat import XFeat  # noqa: E402, I001
 
 

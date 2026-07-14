@@ -59,127 +59,32 @@ pip install torch torchvision
 ```bash
 bash setup.sh
 ```
-Para instalar los datasets en adición a las dependencias, usa: 
-```bash
-bash setup.sh
-```
 Esto:
 
 1. Instala las dependencias de `requirements.txt` (`kornia`, `opencv-python`, `gradio`, `matplotlib`, `numpy`).
 2. Clona **LightGlue** (`cvg/LightGlue`) en `src/models/LightGlue/` y lo instala en modo editable.
 3. Clona **XFeat** (`verlab/accelerated_features`) en `src/models/XFeat/`.
 
-**Importante:** estos repositorios se clonan en `src/models/`, no en `models/` a nivel de raíz — es la ruta que `src/pipelines/*.py` espera. `src/models/` está en `.gitignore`: es código de terceros, no código del proyecto, y no debe commitearse.
+Para instalar los datasets en adición a las dependencias, usa: 
+```bash
+bash setup.sh --datasets
+```
 
-Para desarrollo, instala también:
+Usar este argumento instala en adición los datasets de HPatches e IMC 2025.
+
+**NOTA:** Para descargar el dataset del IMC 2025, necesitas configurar una llave de acceso a la API de Kaggle CLI. Genera la llave en la plataforma de Kaggle y sigue las instrucciones. Además, debes de
+entrar a la página de la competencia y aceptar las reglas en el enlace `https://www.kaggle.com/competitions/image-matching-challenge-2025/rules` antes de poder descargar los datos vía la API.
+
+Para contribuir, instala también las dependencias de desarrollo con el comando:
 ```bash
 pip install -r requirements-dev.txt
 ```
-
----
-
-**⚠️ HPatches publica dos datasets distintos bajo el mismo paper — asegurate de tener el correcto:**
-
-| Archivo | Contenido | ¿Sirve para este framework? |
-|---|---|---|
-| `hpatches-sequences-release.zip` [1.3 GB] | Secuencias completas: `1.ppm`–`6.ppm` + `H_1_k` | **Sí** — es el que usa `HPatchesDataset` |
-| `hpatches-release.zip` [4.2 GB] | Patches recortados: `ref.png`, `eX.png`/`hX.png`/`tX.png` | No — evaluación de descriptores a nivel de patch, formato distinto |
-
-Si tras extraer ves archivos `eX.png`/`hX.png`/`tX.png`/`ref.png` en lugar de `1.ppm`–`6.ppm`, descargaste el archivo equivocado.
-
-`HPatchesDataset` excluye por defecto 8 secuencias con homografías poco confiables (convención D2-Net) — ver `docs/datasets.md` para el detalle y la justificación. Esto deja 108 secuencias × 5 pares = 540 pares evaluados.
-
-
-### Image Matching Challenge (IMC_2025)
-
-## 1. Instalar la CLI de Kaggle
-
-```bash
-pip install kaggle
-```
-Esto instala el comando `kaggle`, que se usa para descargar competencias y
-datasets directamente desde la terminal sin pasar por el navegador.
-
-## 2. Aceptar las reglas de la competencia
-
-Kaggle exige haberse registrado en la competencia (aceptar sus reglas)
-**antes** de poder descargar sus datos vía API — si te saltás este paso,
-la descarga falla con un error 403, aunque tus credenciales estén bien.
-
-1. Iniciar sesión en Kaggle.
-2. Entrar a la página de la competencia y aceptar las reglas:
-   `https://www.kaggle.com/competitions/image-matching-challenge-2025/rules`
-
-## 3. Generar el token de la API
-
-1. Ir a `https://www.kaggle.com/settings` → sección **API**.
-2. Click en **"Generate New Token"**. Esto crea un token de formato:
-   ```json
-   {export KAGGLE_API_TOKEN=KGAT_"tu_token"}
-   ```
-3. Poner tu token en la terminal.
-```bash
-export KAGGLE_API_TOKEN=("TU_TOKEN_GENERADO")
-```
-
-## 4. Descargar y descomprimir el dataset
-
-```bash
-cd ~/kc/Image_Matching_Delfines
-
-kaggle competitions download -c image-matching-challenge-2025 -p datasets/
-
-mkdir -p datasets/IMC_2025
-unzip datasets/image-matching-challenge-2025.zip -d datasets/IMC_2025
-```
-
-**Nota de espacio en disco:** el zip descargado pesa varios GB y, una vez
-descomprimido, el dataset ocupa considerablemente más — confirmar espacio
-libre suficiente antes de descomprimir (`df -h .`). Una vez verificado que
-`datasets/IMC_2025/` quedó completo, el `.zip` se puede borrar para
-liberar espacio:
-
-```bash
-rm datasets/image-matching-challenge-2025.zip
-```
-## 5. Verificar la estructura resultante
-
-```bash
-ls datasets/IMC_2025
-```
-
-Debería verse:
-
-```
-IMC_2025/
-    train_labels.csv
-    train_thresholds.csv
-    sample_submission.csv
-    train/
-        <dataset_name>/
-            LICENSE.txt
-            <scene_prefix>_<...>.png
-            ...
-    test/
-        <dataset_name>/
-            <scene_prefix>_<...>.png
-            ...
-```
-
-Si la estructura coincide, el dataset está listo para usarse con:
-
-```bash
-python src/benchmarks.py --method aliked_lg --dataset imc --data-root datasets/IMC_2025 --max-size 1024
-```
-
 
 ### Otros datasets (IMC, Mismatched, casos límite)
 
 Ver `docs/datasets.md` para el contrato de cada dataset y qué loader implementa cada uno. Si el loader todavía no existe para el dataset que necesitas, ver `CONTRIBUTE.md`, sección "Añadir un Dataset".
 
 ---
-
-## Paso 5 — Verificar la instalación
 
 **Un solo par, con visualización:**
 ```bash
@@ -201,7 +106,7 @@ Guarda un CSV por par y un CSV resumen en `outputs/metrics/`.
 
 ---
 
-## Paso 6 — Primera ejecución (descarga de pesos)
+## Paso 4 — Primera ejecución (descarga de pesos)
 
 La **primera vez** que corras una pipeline, Kornia descarga automáticamente los pesos de ALIKED/LightGlue/SuperPoint/DISK desde internet (~50 MB en total). Las ejecuciones siguientes los usan desde la caché local y no requieren conexión.
 

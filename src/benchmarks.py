@@ -9,9 +9,6 @@ datasets/base.py.
 
 Por ejemplo:
     python src/benchmarks.py --method xfeat_lg --dataset hpatches
-Usage:
-    python benchmarks.py --method aliked_lg --dataset hpatches --data-root
-    ../datasets/hpatches/hpatches-sequences-release
 """
 
 from __future__ import annotations
@@ -36,11 +33,9 @@ from pipelines.disk_lightglue import DiskLightGlue
 from pipelines.sift_lightglue import SiftLightGlue
 from pipelines.superpoint_lightglue import SuperPointLightGlue
 from pipelines.xfeat_lightglue import XFeatLightGlue
-
 from utils.config import resolve_effective_config
 from utils.geometry import compute_fundamental_inliers
 from utils.image import load_image_rgb
-
 
 PIPELINES = {
     "sift_lg": SiftLightGlue,
@@ -67,17 +62,16 @@ def build_pipeline(method: str, device: torch.device, config):
 
 
 def build_dataset(name: str, data_root: Path) -> ImagePairDataset:
-    """Dataset registry. Add an entry here as each loader gets implemented
-    (HPatches, IMC, Mismatched, edge-case sets, ...).
+    """Registro de Datasets. Añade una nueva entrada cada vez que un adaptador
+    nuevo es implementado (HPatches, IMC, etc).
     """
+    from dataset_imc import IMC2025Dataset
     from dataset_interface import FolderPairsDataset
-    from dataset_imc import IMCDataset
 
     registry = {
         "folder": FolderPairsDataset,
         "hpatches": HPatchesDataset,
-        "imc": IMCDataset,
-        # "mismatched": MismatchedDataset,   # TODO
+        "imc2025": IMC2025Dataset,
     }
     if name not in registry:
         raise ValueError(
@@ -88,37 +82,22 @@ def build_dataset(name: str, data_root: Path) -> ImagePairDataset:
 
 
 def evaluate_pair(pipeline, pair, device: torch.device, config) -> dict:
-    """Ejecuta la pipeline en un solo par de imágenes y calcula las métricas que el ground truth de 
-    ese par soporta.
-    """
-
-    image0, _, scale0 = load_image_rgb(
-        str(pair.image0_path), device,
-        max_size=config.protocol.max_image_size,
-        interpolation=config.protocol.resize_interpolation,
-    )  
-    image1, _, scale1 = load_image_rgb(
-        str(pair.image1_path), device,
-        max_size=config.protocol.max_image_size,
-        interpolation=config.protocol.resize_interpolation,
-    )      
-def evaluate_pair(pipeline, pair, device: torch.device, max_size: int | None = None) -> dict:
-    """Run the pipeline on a single pair and compute whatever metrics that
-    pair's ground truth supports.
-
-    `max_size`, si se especifica, redimensiona ambas imágenes (lado más
-    largo) antes de pasarlas al pipeline -- útil para datasets como IMC2025
-    que traen fotos en resolución nativa (a veces varios miles de píxeles)
-    y pueden generar OOM en modelos como ALIKED que operan a resolución
-    completa. Los matches se reescalan de vuelta a coordenadas de la imagen
-    ORIGINAL antes de calcular cualquier métrica, así que el ground truth
-    (homografía de HPatches, intrínsecas de IMC) no se ve afectado.
+    """Ejecuta la pipeline en un solo par de imágenes y calcula las métricas
+    que el ground truth de ese par soporta.
     """
     image0, _, scale0 = load_image_rgb(
-        str(pair.image0_path), device, max_size=max_size, return_scale=True
+        str(pair.image0_path),
+        device,
+        max_size=config.protocol.max_image_size,
+        interpolation=config.protocol.resize_interpolation,
+        return_scale=True,
     )
     image1, _, scale1 = load_image_rgb(
-        str(pair.image1_path), device, max_size=max_size, return_scale=True
+        str(pair.image1_path),
+        device,
+        max_size=config.protocol.max_image_size,
+        interpolation=config.protocol.resize_interpolation,
+        return_scale=True,
     )
 
     start = time.perf_counter()
@@ -127,14 +106,6 @@ def evaluate_pair(pipeline, pair, device: torch.device, max_size: int | None = N
 
     matched0 = result["matched0"].detach().cpu().numpy() / scale0
     matched1 = result["matched1"].detach().cpu().numpy() / scale1
-
-    # Vuelta a coordenadas de la imagen original -- el ground truth (H,
-    # intrínsecas) siempre está expresado a esa resolución, sin importar a
-    # qué tamaño haya visto el modelo la imagen internamente.
-    if scale0 != 1.0 and len(matched0) > 0:
-        matched0 = matched0 / scale0
-    if scale1 != 1.0 and len(matched1) > 0:
-        matched1 = matched1 / scale1
 
     mask = (
         compute_fundamental_inliers(
@@ -172,8 +143,8 @@ def evaluate_pair(pipeline, pair, device: torch.device, max_size: int | None = N
             gt.intrinsics1,
             gt.rotation,
             gt.translation,
-            ransac_threshold=config.protocol.essential_ransac_threshold,
-            ransac_confidence=config.protocol.essential_ransac_confidence,
+            # ransac_threshold=config.protocol.essential_ransac_threshold,
+            # ransac_confidence=config.protocol.essential_ransac_confidence,
         )
         metrics["mAA"] = mean_average_accuracy(errors, HOMOGRAPHY_THRESHOLDS_PX)
         metrics["accuracy@3px"] = float(np.mean(errors <= 3))
@@ -244,15 +215,6 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="CSV path for per-pair results (default: outputs/metrics/).",
     )
-    parser.add_argument(
-    "--max-size",
-    type=int,
-    default=None,
-    help="Redimensiona el lado más largo de cada imagen a este valor antes "
-         "de pasarla al pipeline (preserva aspect ratio). Los matches se "
-         "reescalan de vuelta a resolución original para las métricas. "
-         "Default: sin redimensionar (comportamiento actual).",
-)
     return parser.parse_args()
 
 
@@ -267,13 +229,21 @@ def main():
 
     config = resolve_effective_config(args.method, args.config_root)
 
-    torch.manual_seed(config.protocol.random_seed) 
+    torch.manual_seed(config.protocol.random_seed)
 
-    if(args.data_root is None):
-        match (args.dataset):
+    if args.data_root is None:
+        match args.dataset:
             case "hpatches":
                 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-                args.data_root = PROJECT_ROOT / "datasets" / "hpatches" / "hpatches-sequences-release"
+                args.data_root = (
+                    PROJECT_ROOT
+                    / "datasets"
+                    / "hpatches"
+                    / "hpatches-sequences-release"
+                )  # noqa: E501
+            case "imc2025":
+                PROJECT_ROOT = Path(__file__).resolve().parents[1]
+                args.data_root = PROJECT_ROOT / "datasets" / "imc2025" / ","
             case _:
                 raise ValueError(f"Unknown dataset: {args.dataset}")
 
@@ -286,8 +256,9 @@ def main():
         else Path("outputs/metrics") / f"{args.dataset}_{args.method}.csv"
     )
 
-    per_pair_metrics = [evaluate_pair(pipeline, pair, device, config) for pair in dataset]
-    per_pair_metrics = [evaluate_pair(pipeline, pair, device, max_size=args.max_size) for pair in dataset]
+    per_pair_metrics = [
+        evaluate_pair(pipeline, pair, device, config) for pair in dataset
+    ]
 
     if not per_pair_metrics:
         print("Dataset produced no pairs — nothing to report.")

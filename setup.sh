@@ -78,6 +78,29 @@ if [ "$INSTALL_DATASETS" = true ]; then
 
         echo "HPatches installed successfully."
     fi
+
+    DATASET_DIR="datasets/imc2025/"
+    DATASET_NAME="image-matching-challenge-2025"
+
+    if [ -d "${DATASET_DIR}${DATASET_NAME}"   ]; then
+        echo "IMC 2025 already installed."
+    else
+        if [ ! -f "${DATASET_DIR}${DATASET_NAME}.zip" ]; then
+            echo "Downloading IMC 2025..."
+            kaggle competitions download -c "$DATASET_NAME" -p "$DATASET_DIR"   
+        else
+            echo "Using existing IMC 2025 ZIP."
+        fi
+
+        echo "Extracting IMC 2025..."
+        unzip -q "${DATASET_DIR}${DATASET_NAME}.zip" -d "$DATASET_DIR",
+
+        echo "Removing IMC 2025..."
+        rm "${DATASET_DIR}${DATASET_NAME}.zip"
+
+        echo "IMC 2025 installed successfully."
+    fi
+
 fi
 
 echo ""
