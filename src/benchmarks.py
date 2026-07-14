@@ -8,10 +8,7 @@ ground truth that dataset provides (homography, pose, or none); see
 datasets/base.py.
 
 Por ejemplo:
-    python src/benchmarks.py --method xfeat_lg --dataset hpatches
-Usage:
-    python benchmarks.py --method aliked_lg --dataset hpatches --data-root
-    ../datasets/hpatches/hpatches-sequences-release
+    python src/benchmarks.py --method xfeat_lg --dataset hpatche
 """
 
 from __future__ import annotations
@@ -67,8 +64,8 @@ def build_pipeline(method: str, device: torch.device, config):
 
 
 def build_dataset(name: str, data_root: Path) -> ImagePairDataset:
-    """Dataset registry. Add an entry here as each loader gets implemented
-    (HPatches, IMC, Mismatched, edge-case sets, ...).
+    """Registro de Datasets. Añade una nueva entrada cada vez que un adaptador
+    nuevo es implementado (HPatches, IMC, etc).
     """
     from dataset_interface import FolderPairsDataset
     from dataset_imc import IMCDataset
@@ -77,7 +74,6 @@ def build_dataset(name: str, data_root: Path) -> ImagePairDataset:
         "folder": FolderPairsDataset,
         "hpatches": HPatchesDataset,
         "imc": IMCDataset,
-        # "mismatched": MismatchedDataset,   # TODO
     }
     if name not in registry:
         raise ValueError(
@@ -85,40 +81,24 @@ def build_dataset(name: str, data_root: Path) -> ImagePairDataset:
             "Add a loader in src/datasets/ implementing ImagePairDataset."
         )
     return registry[name](data_root)
-
-
+    
 def evaluate_pair(pipeline, pair, device: torch.device, config) -> dict:
     """Ejecuta la pipeline en un solo par de imágenes y calcula las métricas que el ground truth de 
     ese par soporta.
     """
-
     image0, _, scale0 = load_image_rgb(
-        str(pair.image0_path), device,
+        str(pair.image0_path), 
+        device,
         max_size=config.protocol.max_image_size,
         interpolation=config.protocol.resize_interpolation,
-    )  
-    image1, _, scale1 = load_image_rgb(
-        str(pair.image1_path), device,
-        max_size=config.protocol.max_image_size,
-        interpolation=config.protocol.resize_interpolation,
-    )      
-def evaluate_pair(pipeline, pair, device: torch.device, max_size: int | None = None) -> dict:
-    """Run the pipeline on a single pair and compute whatever metrics that
-    pair's ground truth supports.
-
-    `max_size`, si se especifica, redimensiona ambas imágenes (lado más
-    largo) antes de pasarlas al pipeline -- útil para datasets como IMC2025
-    que traen fotos en resolución nativa (a veces varios miles de píxeles)
-    y pueden generar OOM en modelos como ALIKED que operan a resolución
-    completa. Los matches se reescalan de vuelta a coordenadas de la imagen
-    ORIGINAL antes de calcular cualquier métrica, así que el ground truth
-    (homografía de HPatches, intrínsecas de IMC) no se ve afectado.
-    """
-    image0, _, scale0 = load_image_rgb(
-        str(pair.image0_path), device, max_size=max_size, return_scale=True
+        return_scale=True
     )
     image1, _, scale1 = load_image_rgb(
-        str(pair.image1_path), device, max_size=max_size, return_scale=True
+        str(pair.image1_path), 
+        device, 
+        max_size=config.protocol.max_image_size,
+        interpolation=config.protocol.resize_interpolation,
+        return_scale=True
     )
 
     start = time.perf_counter()
@@ -287,7 +267,6 @@ def main():
     )
 
     per_pair_metrics = [evaluate_pair(pipeline, pair, device, config) for pair in dataset]
-    per_pair_metrics = [evaluate_pair(pipeline, pair, device, max_size=args.max_size) for pair in dataset]
 
     if not per_pair_metrics:
         print("Dataset produced no pairs — nothing to report.")
