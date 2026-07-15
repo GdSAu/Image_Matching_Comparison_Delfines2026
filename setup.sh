@@ -101,6 +101,59 @@ if [ "$INSTALL_DATASETS" = true ]; then
         echo "IMC 2025 installed successfully."
     fi
 
+    DATASET_DIR="datasets/MegaDepth"
+    IMAGES_ARCHIVE="${DATASET_DIR}/megadepth_test_1500.tar"
+    IMAGES_EXTRACTED_DIR="${DATASET_DIR}/megadepth_test_1500"
+    SCENE_INFO_DIR="${DATASET_DIR}/scene_info"
+    GDRIVE_FILE_ID="12yKniNWebDHRTCwhBNJmxYMPgqYX3Nhv"
+    SCENE_INFO_BASE_URL="https://raw.githubusercontent.com/zju3dv/LoFTR/master/assets/megadepth_test_1500_scene_info"
+    SCENE_INFO_FILES=(
+        "0015_0.1_0.3.npz"
+        "0015_0.3_0.5.npz"
+        "0022_0.1_0.3.npz"
+        "0022_0.3_0.5.npz"
+        "0022_0.5_0.7.npz"
+    )
+    mkdir -p "$DATASET_DIR"
+
+    if [ -d "${DATASET_DIR}/Undistorted_SfM" ]; then
+        echo "MegaDepth-1500 images already installed."
+    else
+        pip install --quiet gdown
+
+        if [ ! -f "$IMAGES_ARCHIVE" ]; then
+            echo "Downloading MegaDepth-1500 (images + depth)..."
+            (cd "$DATASET_DIR" && gdown "$GDRIVE_FILE_ID")
+        else
+            echo "Using existing MegaDepth-1500 tar."
+        fi
+
+        echo "Extracting MegaDepth-1500..."
+        tar -xf "$IMAGES_ARCHIVE" -C "$DATASET_DIR"
+
+        echo "Reorganizing directory structure..."
+        mv "${IMAGES_EXTRACTED_DIR}/Undistorted_SfM" "$DATASET_DIR"
+        rm -rf "$IMAGES_EXTRACTED_DIR"
+
+        echo "Removing tar..."
+        rm "$IMAGES_ARCHIVE"
+
+        echo "MegaDepth-1500 images installed successfully."
+    fi
+
+    if [ -d "$SCENE_INFO_DIR" ]; then
+        echo "MegaDepth-1500 scene_info already installed."
+    else
+        echo "Downloading MegaDepth-1500 scene_info (intrínsecas, poses, pares)..."
+        mkdir -p "$SCENE_INFO_DIR"
+        for scene_info_file in "${SCENE_INFO_FILES[@]}"; do
+            wget -q \
+                "${SCENE_INFO_BASE_URL}/${scene_info_file}" \
+                -O "${SCENE_INFO_DIR}/${scene_info_file}"
+        done
+        echo "MegaDepth-1500 scene_info installed successfully."
+    fi
+
 fi
 
 echo ""
