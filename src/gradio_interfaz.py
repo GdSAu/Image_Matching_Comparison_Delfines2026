@@ -8,11 +8,13 @@ benchmarking — no lee `config.toml`, no pasa por
 `utils/geometry.py::compute_fundamental_inliers`, y no debe usarse como
 referencia de métricas comparables entre métodos.
 
-Este archivo llama directamente a `run_pipeline.py::run_single_pair`, 
-que es la misma función que usa el CLI (`python run_pipeline.py 
---method ...`). Esto garantiza que los números mostrados en la interfaz 
-sean  idénticos a los que produce el CLI para el mismo par de imágenes y 
-la misma configuración.
+A diferencia de la versión anterior de este archivo, esta NO reimplementa
+la lógica de extracción/matching/RANSAC: llama directamente a
+`run_pipeline.py::run_single_pair`, que es la misma función que usa el
+CLI (`python run_pipeline.py --method ...`). Esto garantiza que los
+números mostrados acá sean idénticos a los que produce el CLI para el
+mismo par de imágenes y la misma configuración — importante dado que
+este framework está pensado para ser auditable (ver docs/methodology.md).
 
 Modo dataset (evaluar un dataset completo en vez de un par manual): la
 interfaz ya tiene el selector, pero está deshabilitado. Se implementará
@@ -21,7 +23,10 @@ pares, métricas agregadas) — no un selector de par individual dentro del
 dataset (decisión ya tomada, ver conversación de diseño).
 
 Ejecución:
-    python src/gradio_interfaz.py
+    python src/gradio_app.py
+
+Requisitos adicionales a los del resto del proyecto:
+    pip install gradio
 """
 
 import os
@@ -33,6 +38,7 @@ import gradio as gr
 import numpy as np
 import torch
 
+from benchmarks import aggregate, iter_dataset_metrics
 from dino_matching import DinoV3Matcher
 from run_pipeline import PIPELINES, run_single_pair
 from utils.config import resolve_effective_config
@@ -57,7 +63,16 @@ METHOD_LABELS = {
 DINOV3_LABEL = "DINOv3 (demo, fuera del framework de benchmarking)"
 
 MODO_MANUAL = "Par de imágenes manual"
-MODO_DATASET = "Dataset completo (próximamente)"
+MODO_DATASET = "Dataset completo"
+
+# Datasets evaluables desde la UI. "folder" queda afuera porque requiere
+# una ruta arbitraria como argumento (--data-root), que no tiene un
+# selector natural en esta interfaz todavía — usar el CLI
+# (benchmarks.py) para ese caso por ahora.
+DATASET_LABELS = {
+    "HPatches": "hpatches",
+    "IMC 2025": "imc2025",
+}
 
 assert set(METHOD_LABELS.values()) == set(PIPELINES.keys()), (
     "METHOD_LABELS desincronizado con run_pipeline.PIPELINES: agregar/quitar "
@@ -214,7 +229,76 @@ def _inferencia_dinov3(img0_rgb: np.ndarray, img1_rgb: np.ndarray):
 
 
 # ---------------------------------------------------------------------
+# Inferencia: dataset completo (streaming, vía iter_dataset_metrics)
+# ---------------------------------------------------------------------
+
+
+def _inferencia_dataset_stream(metodo_label: str, dataset_label: str):
+    """Generador: yield-ea (imagen, texto_log) después de cada par
+    procesado, y termina con el resumen agregado.
+
+    `imagen` se mantiene en None durante todo el modo dataset — no se
+    visualizan correspondencias acá (decisión de diseño: modo dataset es
+    solo métricas agregadas, ver conversación). El componente de imagen
+    de Gradio simplemente no se actualiza mientras reciba None repetido.
+    """
+    if metodo_label == DINOV3_LABEL:
+        raise gr.Error(
+            "El modo dataset no está disponible para la demo DINOv3 "
+            "(no forma parte del framework de benchmarking ni tiene "
+            "ground truth asociado). Elegir uno de los 5 métodos "
+            "principales."
+        )
+
+    method = METHOD_LABELS[metodo_label]
+    dataset_name = DATASET_LABELS[dataset_label]
+    config = resolve_effective_config(method, CONFIG_PATH)
+
+    log_lines = [
+        f"Método  : {metodo_label}",
+        f"Dataset : {dataset_label}",
+        f"Configuración: {CONFIG_PATH}",
+        "",
+    ]
+    yield None, "\n".join(log_lines)
+
+    per_pair_metrics = []
+    try:
+        for m in iter_dataset_metrics(method, dataset_name, config, device=DEVICE):
+            per_pair_metrics.append(m)
+            log_lines.append(
+                f"[{m['pair_id']}] matches={m['n_matches']} "
+                f"inliers={m['n_inliers']} "
+                f"inlier_ratio={m['inlier_ratio']:.3f}"
+            )
+            yield None, "\n".join(log_lines)
+    except FileNotFoundError as exc:
+        raise gr.Error(
+            f"No se pudo leer el dataset '{dataset_label}': {exc}. "
+            "Ver docs/datasets.md para la ruta esperada."
+        ) from exc
+
+    if not per_pair_metrics:
+        log_lines.append("\nEl dataset no produjo pares — nada que reportar.")
+        yield None, "\n".join(log_lines)
+        return
+
+    summary = aggregate(per_pair_metrics)
+    log_lines.append("")
+    log_lines.append("===== RESUMEN (promedio sobre todos los pares) =====")
+    for key, value in summary.items():
+        log_lines.append(f"{key:24s}: {value}")
+    yield None, "\n".join(log_lines)
+
+
+# ---------------------------------------------------------------------
 # Punto de entrada único llamado por Gradio
+#
+# Es un generador (usa yield, no return) incluso en las ramas que
+# producen un solo resultado: Gradio detecta la presencia de `yield` en
+# cualquier rama y trata toda la función como streameable, así que no se
+# puede mezclar `return valor` con `yield valor` en distintas ramas del
+# mismo cuerpo.
 # ---------------------------------------------------------------------
 
 
@@ -223,25 +307,24 @@ def inferencia(
     metodo_label: str,
     img0_rgb: np.ndarray,
     img1_rgb: np.ndarray,
+    dataset_label: str,
 ):
     if modo == MODO_DATASET:
-        raise gr.Error(
-            "La evaluación de dataset completo todavía no está "
-            "implementada en esta interfaz. Usar 'Par de imágenes "
-            "manual' por ahora, o correr benchmarks.py desde la terminal."
-        )
+        yield from _inferencia_dataset_stream(metodo_label, dataset_label)
+        return
 
     if img0_rgb is None or img1_rgb is None:
         raise gr.Error("Sube dos imágenes antes de ejecutar el emparejamiento.")
 
     if metodo_label == DINOV3_LABEL:
-        return _inferencia_dinov3(img0_rgb, img1_rgb)
+        yield _inferencia_dinov3(img0_rgb, img1_rgb)
+        return
 
     method = METHOD_LABELS[metodo_label]
     img0_path = _guardar_temporal(img0_rgb)
     img1_path = _guardar_temporal(img1_rgb)
     try:
-        return _inferencia_framework(method, img0_path, img1_path)
+        yield _inferencia_framework(method, img0_path, img1_path)
     finally:
         img0_path.unlink(missing_ok=True)
         img1_path.unlink(missing_ok=True)
@@ -280,13 +363,22 @@ with gr.Blocks(title="Image Matching Delfines") as demo:
             choices=[*METHOD_LABELS.keys(), DINOV3_LABEL],
             value="ALIKED + LightGlue",
         )
+        dataset_input = gr.Dropdown(
+            label="Dataset (solo modo 'Dataset completo')",
+            choices=list(DATASET_LABELS.keys()),
+            value="HPatches",
+        )
 
-    boton = gr.Button("Emparejar imágenes", variant="primary", size="lg")
+    boton = gr.Button("Ejecutar", variant="primary", size="lg")
 
     resultado_img = gr.Image(
-        label="Correspondencias encontradas", type="numpy", height=400
+        label="Correspondencias encontradas (solo modo par manual)",
+        type="numpy",
+        height=400,
     )
-    resultado_texto = gr.Textbox(label="Estadísticas", lines=7, interactive=False)
+    resultado_texto = gr.Textbox(
+        label="Estadísticas / progreso", lines=12, interactive=False
+    )
 
     gr.Markdown("""
     ---
@@ -300,7 +392,7 @@ with gr.Blocks(title="Image Matching Delfines") as demo:
 
     boton.click(
         fn=inferencia,
-        inputs=[modo_input, metodo_input, img0_input, img1_input],
+        inputs=[modo_input, metodo_input, img0_input, img1_input, dataset_input],
         outputs=[resultado_img, resultado_texto],
     )
 

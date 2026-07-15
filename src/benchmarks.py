@@ -81,6 +81,64 @@ def build_dataset(name: str, data_root: Path) -> ImagePairDataset:
     return registry[name](data_root)
 
 
+def default_data_root(dataset_name: str) -> Path:
+    """Resuelve la ruta de datos por defecto para un dataset conocido.
+
+    Extraído de `main()` para que `gradio_app.py` (modo dataset) pueda
+    resolver la misma ruta por defecto sin reimplementar el `match`.
+
+    NOTA: la rama de "imc2025" tiene actualmente un segmento de ruta
+    sospechoso (`","`), heredado del `main()` original — revisar si es
+    un typo antes de confiar en este default para IMC2025.
+    """
+    project_root = Path(__file__).resolve().parents[1]
+    match dataset_name:
+        case "hpatches":
+            return project_root / "datasets" / "hpatches" / "hpatches-sequences-release"
+        case "imc2025":
+            return project_root / "datasets" / "imc2025" / ","
+        case _:
+            raise ValueError(f"Unknown dataset: {dataset_name}")
+
+
+def iter_dataset_metrics(
+    method: str,
+    dataset_name: str,
+    config,
+    data_root: Path | None = None,
+    device: torch.device | None = None,
+):
+    """Corre `method` sobre todos los pares de `dataset_name`, de a un par
+    por vez (generador).
+
+    Función central compartida por `main()` (más abajo, que la consume
+    para imprimir progreso y acumular resultados para el CSV) y por
+    `gradio_app.py` (que la consume para streamear progreso a la UI).
+    Igual que `run_pipeline.py::run_single_pair`, existe para que no haya
+    dos implementaciones del mismo loop que puedan desincronizarse.
+
+    Es un generador (no devuelve una lista) para que el llamador pueda
+    reportar progreso par por par sin esperar a que termine todo el
+    dataset — importante para datasets grandes corridos desde la UI.
+
+    Yields:
+        dict de métricas por par, igual a lo que devuelve `evaluate_pair`.
+    """
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    torch.manual_seed(config.protocol.random_seed)
+
+    if data_root is None:
+        data_root = default_data_root(dataset_name)
+
+    pipeline = build_pipeline(method, device, config)
+    dataset = build_dataset(dataset_name, Path(data_root))
+
+    for pair in dataset:
+        yield evaluate_pair(pipeline, pair, device, config)
+
+
 def evaluate_pair(pipeline, pair, device: torch.device, config) -> dict:
     """Ejecuta la pipeline en un solo par de imágenes y calcula las métricas
     que el ground truth de ese par soporta.
@@ -231,24 +289,7 @@ def main():
 
     torch.manual_seed(config.protocol.random_seed)
 
-    if args.data_root is None:
-        match args.dataset:
-            case "hpatches":
-                PROJECT_ROOT = Path(__file__).resolve().parents[1]
-                args.data_root = (
-                    PROJECT_ROOT
-                    / "datasets"
-                    / "hpatches"
-                    / "hpatches-sequences-release"
-                )  # noqa: E501
-            case "imc2025":
-                PROJECT_ROOT = Path(__file__).resolve().parents[1]
-                args.data_root = PROJECT_ROOT / "datasets" / "imc2025" / ","
-            case _:
-                raise ValueError(f"Unknown dataset: {args.dataset}")
-
-    pipeline = build_pipeline(args.method, device, config)
-    dataset = build_dataset(args.dataset, Path(args.data_root))
+    data_root = Path(args.data_root) if args.data_root else None
 
     output_path = (
         Path(args.output)
@@ -256,9 +297,16 @@ def main():
         else Path("outputs/metrics") / f"{args.dataset}_{args.method}.csv"
     )
 
-    per_pair_metrics = [
-        evaluate_pair(pipeline, pair, device, config) for pair in dataset
-    ]
+    per_pair_metrics = []
+    for m in iter_dataset_metrics(
+        args.method, args.dataset, config, data_root=data_root, device=device
+    ):
+        print(
+            f"[{m['pair_id']}] matches={m['n_matches']} "
+            f"inliers={m['n_inliers']} "
+            f"inlier_ratio={m['inlier_ratio']:.3f}"
+        )
+        per_pair_metrics.append(m)
 
     if not per_pair_metrics:
         print("Dataset produced no pairs — nothing to report.")
