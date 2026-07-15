@@ -77,8 +77,7 @@ class MegaDepthDataset(ImagePairDataset):
         scene_info_files = sorted(scene_info_dir.glob(scene_info_glob))
         if not scene_info_files:
             raise FileNotFoundError(
-                f"No se encontraron archivos '{scene_info_glob}' en "
-                f"{scene_info_dir}."
+                f"No se encontraron archivos '{scene_info_glob}' en {scene_info_dir}."
             )
 
         self._pairs: list[
