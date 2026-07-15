@@ -1,6 +1,6 @@
 ## How to run it
-# python src/run_pipeline.py --method xfeat_lg --img1 datasets/imagen1.jpeg
-# --img2 datasets/imagen2.jpeg
+# python src/run_pipeline.py --method xfeat_lg --img0 datasets/imagen1.jpeg
+# --img1 datasets/imagen2.jpeg
 
 import argparse
 from pathlib import Path
@@ -12,12 +12,15 @@ from pipelines.disk_lightglue import DiskLightGlue
 from pipelines.sift_lightglue import SiftLightGlue
 from pipelines.superpoint_lightglue import SuperPointLightGlue
 from pipelines.xfeat_lightglue import XFeatLightGlue
+
+from utils.config import resolve_effective_config
 from utils.geometry import compute_fundamental_inliers
 from utils.image import load_image_rgb
+
 from visualization import visualize_matches
 
 
-def build_pipeline(method: str, device):
+def build_pipeline(method: str, device: torch.device, config):
 
     pipelines = {
         "sift_lg": SiftLightGlue,
@@ -30,7 +33,11 @@ def build_pipeline(method: str, device):
     if method not in pipelines:
         raise ValueError(f"Unknown method: {method}")
 
-    return pipelines[method](device)
+    return pipelines[method](
+        device,
+        max_keypoints=config.protocol.max_keypoints,
+        **config.method_kwargs,
+    )
 
 
 def parse_args():
@@ -50,13 +57,22 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--img1",
+        "--img0",
         required=True,
+        help="Ruta de la segunda imagen"
     )
 
     parser.add_argument(
-        "--img2",
+        "--img1",
         required=True,
+        help="Ruta de la segunda imagen"
+    )
+
+    parser.add_argument(
+        "--config",
+        required=False,
+        default="configs/config.toml",
+        help="toml path benchmark configuration (default: configs/config.toml).",
     )
 
     parser.add_argument(
@@ -75,6 +91,9 @@ def main():
 
     print(f"Device : {device}")
     print(f"Method : {args.method}")
+    print(f"Configuration file : {args.config}")
+
+    config = resolve_effective_config(args.method, args.config)
 
     if args.output is None:
         output_path = Path("../outputs/images") / f"{args.method}.png"
@@ -87,33 +106,46 @@ def main():
         exist_ok=True,
     )
 
-    img1_tensor, img1_bgr = load_image_rgb(
-        args.img1,
+    image0_tensor, _, scale0 = load_image_rgb(
+        args.img0,
         device,
+        max_size=config.protocol.max_image_size,
+        interpolation=config.protocol.resize_interpolation,
+        return_scale=True,
     )
 
-    img2_tensor, img2_bgr = load_image_rgb(
-        args.img2,
+    image1_tensor, _, scale1 = load_image_rgb(
+        args.img1,
         device,
+        max_size=config.protocol.max_image_size,
+        interpolation=config.protocol.resize_interpolation,
+        return_scale=True,
     )
 
     pipeline = build_pipeline(
         args.method,
         device,
+        config,
     )
 
     result = pipeline.run(
-        img1_tensor,
-        img2_tensor,
+        image0_tensor,
+        image1_tensor,
     )
 
-    matched0 = result["matched0"].detach().cpu().numpy()
+    matched0 = result["matched0"].detach().cpu().numpy() / scale0
+    matched1 = result["matched1"].detach().cpu().numpy() / scale1
 
-    matched1 = result["matched1"].detach().cpu().numpy()
-
-    mask = compute_fundamental_inliers(
-        matched0,
-        matched1,
+    mask = (
+        compute_fundamental_inliers(
+            matched0,
+            matched1,
+            threshold=config.protocol.fundamental_ransac_threshold_px,
+            confidence=config.protocol.fundamental_ransac_confidence,
+            max_iters=config.protocol.fundamental_ransac_max_iters,
+        )
+        if len(matched0) > 0
+        else None
     )
 
     if mask is None:
@@ -131,8 +163,8 @@ def main():
     print(f"Inlier ratio : {100 * n_inliers / n_matches:.2f}%")
 
     visualize_matches(
-        img1_tensor,
-        img2_tensor,
+        image0_tensor,
+        image1_tensor,
         result["keypoints0"],
         result["keypoints1"],
         result["matches"],

@@ -31,7 +31,7 @@ from utils.cudnn import cudnn_disabled
 # necesidad de identificar exactamente cuál es.
 
 ROOT = Path(__file__).resolve().parents[1]
-XFEAT_ROOT = ROOT / "models" / "XFeat" / "accelerated_features"
+XFEAT_ROOT = ROOT / "models" / "XFeat"
 
 
 def _cargar_paquete_modules_de_xfeat() -> None:
@@ -115,17 +115,10 @@ class XFeatLightGlue:
             feats1,
         )
 
-        # NOTA: la verificación geométrica (RANSAC + inlier_ratio) se
-        # calcula de forma centralizada en utils/geometry.py, con los
-        # mismos parámetros de config.toml para las 5 pipelines. No
-        # duplicar RANSAC acá: hacerlo con un umbral propio (como se
-        # hacía antes, 1.5 px) rompe la comparabilidad si algún día se
-        # empieza a consumir este resultado en vez del centralizado.
-
         return {
-            "features0": feats0,
-            "features1": feats1,
-            "matches": matches,
+            "keypoints0": feats0["keypoints"],
+            "keypoints1": feats1["keypoints"],
+            "matches": torch.from_numpy(matches).to(self.device),
             "matched0": torch.from_numpy(mkpts0).to(self.device),
             "matched1": torch.from_numpy(mkpts1).to(self.device),
         }
