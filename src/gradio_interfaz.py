@@ -11,13 +11,22 @@ tocar la terminal.
     usada en la comunidad de IA para crear demos rápidas de modelos.
     Con Gradio puedes compartir tu aplicación con un enlace público
     temporal (usando el parámetro share=True).
+    interfaces web interactivas en pocas líneas de código. Es ampliamente
+    usada en la comunidad de IA para crear demos rápidas de modelos.
+    Con Gradio puedes compartir tu aplicación con un enlace público
+    temporal (usando el parámetro share=True).
 
+Cómo funciona:
+    1. El usuario sube dos imágenes desde su navegador.
+    2. La aplicación corre el pipeline ALIKED + LightGlue.
 Cómo funciona:
     1. El usuario sube dos imágenes desde su navegador.
     2. La aplicación corre el pipeline ALIKED + LightGlue.
     3. Se muestra la imagen resultante con las correspondencias dibujadas
        y estadísticas del resultado.
+       y estadísticas del resultado.
 
+Ejecución:
 Ejecución:
     python 02_gradio_app.py
 
@@ -42,6 +51,8 @@ from dino_matching import DinoV3Matcher
 # ---------------------------------------------------------------------------
 # Configuración del pipeline
 # (Los mismos parámetros que en 01_aliked_lightglue.py, centralizados aquí­)
+# Configuración del pipeline
+# (Los mismos parámetros que en 01_aliked_lightglue.py, centralizados aquí­)
 # ---------------------------------------------------------------------------
 
 MAX_LADO = 1024  # Tamaí±o máximo de la imagen antes de procesarla
@@ -55,6 +66,7 @@ MODELO_TODOS = "Tres modelos en conjunto"
 
 
 # ---------------------------------------------------------------------------
+# Inicialización de modelos (se hace UNA SOLA VEZ al arrancar la app)
 # Inicialización de modelos (se hace UNA SOLA VEZ al arrancar la app)
 #
 # Cargar los modelos es caro (descarga pesos + mueve tensores a GPU).
@@ -75,6 +87,7 @@ elif torch.backends.mps.is_available():
 else:
     DISPOSITIVO = torch.device("cpu")
     print("  CPU (la inferencia será más lenta)")
+    print("  CPU (la inferencia será más lenta)")
 
 ALIKED = KF.ALIKED.from_pretrained(
     model_name="aliked-n16rot",
@@ -94,10 +107,13 @@ print("  Modelos listos.")
 # Funciones del pipeline
 # (Versión compacta de las funciones de 01_aliked_lightglue.py)
 # En un proyecto real estas funciones se importarí­an desde un módulo compartido.
+# (Versión compacta de las funciones de 01_aliked_lightglue.py)
+# En un proyecto real estas funciones se importarí­an desde un módulo compartido.
 # ---------------------------------------------------------------------------
 
 
 def redimensionar_si_necesario(img_bgr: np.ndarray) -> np.ndarray:
+    """Reduce la imagen si algún lado supera MAX_LADO, preservando aspecto."""
     """Reduce la imagen si algún lado supera MAX_LADO, preservando aspecto."""
     h, w = img_bgr.shape[:2]
     if max(h, w) > MAX_LADO:
@@ -114,6 +130,7 @@ def bgr_a_tensor_gris(img_bgr: np.ndarray) -> torch.Tensor:
     """
     BGR uint8 â†’ tensor PyTorch (1, 1, H, W) float32 en [0, 1].
     ALIKED espera imágenes en escala de grises normalizadas.
+    ALIKED espera imágenes en escala de grises normalizadas.
     """
     img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
     img_float = img_rgb.astype(np.float32) / 255.0
@@ -123,6 +140,7 @@ def bgr_a_tensor_gris(img_bgr: np.ndarray) -> torch.Tensor:
 
 def extraer_y_emparejar(img0_bgr: np.ndarray, img1_bgr: np.ndarray):
     """
+    Extrae caracterí­sticas con ALIKED y las empareja con LightGlue.
     Extrae caracterí­sticas con ALIKED y las empareja con LightGlue.
     Devuelve los keypoints emparejados (antes de RANSAC).
     """
@@ -210,6 +228,7 @@ def aplicar_ransac(mkpts0: np.ndarray, mkpts1: np.ndarray):
     """
     Filtra correspondencias incorrectas usando RANSAC + Matriz Fundamental.
     Devuelve inliers y la máscara booleana.
+    Devuelve inliers y la máscara booleana.
     """
     if len(mkpts0) < 8:
         return mkpts0, mkpts1, None
@@ -239,6 +258,7 @@ def dibujar_correspondencias(
     mkpts1_all: np.ndarray | None,
 ) -> np.ndarray:
     """
+    Genera la imagen compuesta con las dos imágenes lado a lado y las
     Genera la imagen compuesta con las dos imágenes lado a lado y las
     correspondencias dibujadas (verde = inliers, rojo = outliers).
     """
@@ -273,6 +293,7 @@ def dibujar_correspondencias(
 
 
 # ---------------------------------------------------------------------------
+# Función principal de inferencia (la que llama Gradio)
 # Función principal de inferencia (la que llama Gradio)
 # ---------------------------------------------------------------------------
 
@@ -369,17 +390,21 @@ def inferencia(
     Punto de entrada para Gradio.
 
     Gradio entrega las imágenes como arrays RGB de NumPy (dtype uint8).
+    Gradio entrega las imágenes como arrays RGB de NumPy (dtype uint8).
     Devolvemos:
         - Imagen resultado (RGB NumPy array) para el componente gr.Image
+        - Texto con las estadí­sticas del resultado para gr.Textbox
         - Texto con las estadí­sticas del resultado para gr.Textbox
     """
     if img0_rgb is None or img1_rgb is None:
         raise gr.Error("Sube dos imagenes antes de ejecutar el emparejamiento.")
 
     # Gradio pasa imágenes en RGB; convertimos a BGR para OpenCV
+    # Gradio pasa imágenes en RGB; convertimos a BGR para OpenCV
     img0_bgr = cv2.cvtColor(img0_rgb, cv2.COLOR_RGB2BGR)
     img1_bgr = cv2.cvtColor(img1_rgb, cv2.COLOR_RGB2BGR)
 
+    # Redimensionar si las imágenes son muy grandes
     # Redimensionar si las imágenes son muy grandes
     img0_bgr = redimensionar_si_necesario(img0_bgr)
     img1_bgr = redimensionar_si_necesario(img1_bgr)
@@ -397,6 +422,7 @@ def inferencia(
 
 
 # ---------------------------------------------------------------------------
+# Definición de la interfaz Gradio
 # Definición de la interfaz Gradio
 # ---------------------------------------------------------------------------
 
@@ -432,6 +458,7 @@ with gr.Blocks(title="Image Matching â€” ALIKED + LightGlue") as demo:
     )
 
     boton = gr.Button("Emparejar imágenes", variant="primary", size="lg")
+    boton = gr.Button("Emparejar imágenes", variant="primary", size="lg")
 
     resultado_img = gr.Image(
         label="Correspondencias encontradas",
@@ -440,6 +467,7 @@ with gr.Blocks(title="Image Matching â€” ALIKED + LightGlue") as demo:
     )
 
     resultado_texto = gr.Textbox(
+        label="Estadí­sticas",
         label="Estadí­sticas",
         lines=6,
         interactive=False,
@@ -457,12 +485,14 @@ with gr.Blocks(title="Image Matching â€” ALIKED + LightGlue") as demo:
     """)
 
     # Conectar el botón con la función de inferencia
+    # Conectar el botón con la función de inferencia
     boton.click(
         fn=inferencia,
         inputs=[img0_input, img1_input, modelo_input],
         outputs=[resultado_img, resultado_texto],
     )
 
+    # Ejemplos opcionales: si pones imágenes de prueba en la carpeta, aparecerán aquí­.
     # Ejemplos opcionales: si pones imágenes de prueba en la carpeta, aparecerán aquí­.
     # gr.Examples(
     #     examples=[["img1.jpg", "img2.jpg"]],
@@ -491,5 +521,6 @@ if __name__ == "__main__":
     demo.launch(
         server_name=os.getenv("GRADIO_SERVER_NAME", "127.0.0.1"),
         server_port=obtener_puerto_gradio(),
+        # share=True,            # descomenta para obtener un enlace público temporal
         # share=True,            # descomenta para obtener un enlace público temporal
     )
