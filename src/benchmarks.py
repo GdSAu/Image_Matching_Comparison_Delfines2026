@@ -67,11 +67,13 @@ def build_dataset(name: str, data_root: Path) -> ImagePairDataset:
     """
     from dataset_imc import IMC2025Dataset
     from dataset_interface import FolderPairsDataset
+    from dataset_megadepth import MegaDepthDataset
 
     registry = {
         "folder": FolderPairsDataset,
         "hpatches": HPatchesDataset,
         "imc2025": IMC2025Dataset,
+        "megadepth": MegaDepthDataset,
     }
     if name not in registry:
         raise ValueError(
@@ -289,7 +291,27 @@ def main():
 
     torch.manual_seed(config.protocol.random_seed)
 
-    data_root = Path(args.data_root) if args.data_root else None
+    if args.data_root is None:
+        match args.dataset:
+            case "hpatches":
+                PROJECT_ROOT = Path(__file__).resolve().parents[1]
+                args.data_root = (
+                    PROJECT_ROOT
+                    / "datasets"
+                    / "hpatches"
+                    / "hpatches-sequences-release"
+                )  # noqa: E501
+            case "imc2025":
+                PROJECT_ROOT = Path(__file__).resolve().parents[1]
+                args.data_root = PROJECT_ROOT / "datasets" / "imc2025" / ","
+            case "megadepth":
+                PROJECT_ROOT = Path(__file__).resolve().parents[1]
+                args.data.root = PROJECT_ROOT / "datasets" / "MegaDepth"
+            case _:
+                raise ValueError(f"Unknown dataset: {args.dataset}")
+
+    pipeline = build_pipeline(args.method, device, config)
+    dataset = build_dataset(args.dataset, Path(args.data_root))
 
     output_path = (
         Path(args.output)
@@ -299,7 +321,7 @@ def main():
 
     per_pair_metrics = []
     for m in iter_dataset_metrics(
-        args.method, args.dataset, config, data_root=data_root, device=device
+        args.method, args.dataset, config, data_root=args.data_root, device=device
     ):
         print(
             f"[{m['pair_id']}] matches={m['n_matches']} "
