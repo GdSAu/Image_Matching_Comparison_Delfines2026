@@ -131,6 +131,48 @@ IMC_2025/
 
 ---
 
+## MegaDepth
+
+* **Loader:** `src/dataset_megadepth.py::MegaDepthDataset` (implementado y verificado — 2026-07-15)
+* **Tipo de ground truth:** `pose` (pose relativa derivada de pose absoluta por imagen) — **con intrínsecas reales**, calculadas por COLMAP durante la reconstrucción original de MegaDepth.
+* **Fuente / versión:** subset de test estándar "MegaDepth-1500", curado originalmente por los autores de LoFTR (Sun et al., CVPR 2021) a partir del dataset completo MegaDepth (Li & Snavely, CVPR 2018). Es el split que reportan LoFTR, SuperGlue, DISK, XFeat y prácticamente todos los métodos de matching pose-based recientes — los números de este framework son directamente comparables contra esos papers, siempre que se use el mismo `max_image_size` de preprocesamiento que ellos (típicamente ~1200px de lado mayor).
+
+  Archivos necesarios:
+  - Imágenes + profundidad (`megadepth_test_1500.tar`): carpeta de Google Drive de LoFTR — `https://drive.google.com/drive/folders/1nTkK1485FuwqA0DbZrK2Cl0WnXadUZdc`
+  - Info de pares (intrínsecas, poses, índices): `https://github.com/zju3dv/LoFTR/tree/master/assets/megadepth_test_1500_scene_info`
+
+  **⚠️ Advertencia — JPEGs corruptos en el dump crudo:** se detectaron archivos `.jpg` truncados ("Premature end of JPEG file") en el `.tar` de imágenes — un problema conocido de este dump, mencionado también en otros repos de terceros que lo consumen. `cv2.imread` no lanza excepción sobre estos archivos: devuelve `None` silenciosamente, y el error real aparece recién en `cv2.cvtColor` con un mensaje críptico (`!_src.empty()`) que no identifica el archivo problemático. `load_image_rgb` debe validar explícitamente que `cv2.imread` no devolvió `None` y lanzar un error claro con la ruta; `benchmarks.py::main` debe capturar esos errores por par y seguir con el resto del dataset en vez de abortar toda la corrida. Con esto, el `n_pairs` final del summary puede ser levemente menor a 1500 — normal, no indica un bug del loader.
+* **Split usado:** solo el split de test (1500 pares). No se usa el resto del dataset completo de MegaDepth (196 escenas, cientos de GB) — sería para entrenamiento, no para este framework de benchmark.
+* **Escenas o pares excluidos:** ninguno manual — se usan los 5 archivos estándar de `scene_info/` tal como los distribuyen los autores de LoFTR. Se descartan automáticamente (a nivel de par individual, no de escena) los índices con `image_paths`/`intrinsics`/`poses` en `None`, o cuya imagen no exista en disco (incluye los JPEGs corruptos de la advertencia de arriba).
+* **Número de pares:** 5 escenas/rangos de overlap (`0015_0.1_0.3`, `0015_0.3_0.5`, `0022_0.1_0.3`, `0022_0.3_0.5`, `0022_0.5_0.7`) × 300 pares cada uno = 1500 pares (de ahí el nombre "MegaDepth-1500"), menos los que se descarten por JPEGs corruptos.
+* **Estructura de directorio esperada:**
+
+  ```text
+  datasets/MegaDepth/
+      scene_info/
+          0015_0.1_0.3.npz
+          0015_0.3_0.5.npz
+          0022_0.1_0.3.npz
+          0022_0.3_0.5.npz
+          0022_0.5_0.7.npz
+      Undistorted_SfM/
+          0015/images/*.jpg
+          0022/images/*.jpg
+  ```
+
+  Cada `.npz` de `scene_info/` **no** es el formato zip estándar de NumPy —
+  es un único dict serializado (`np.load(..., allow_pickle=True)` puede
+  devolver el dict directamente, o un array 0-d que envuelve el dict según
+  la versión de NumPy; `MegaDepthDataset` contempla ambos casos). Sus
+  keys:
+  - `image_paths` (`ndarray(object)`): ruta relativa a la carpeta raíz de MegaDepth, o `None`.
+  - `intrinsics` (`ndarray(object)`): matriz K 3×3 por imagen, o `None`.
+  - `poses` (`ndarray(object)`): matriz 4×4 `[R|t; 0 0 0 1]` por imagen (mundo→cámara, misma convención que IMC2025), o `None`.
+  - `pair_infos` (`list`): tuplas `(indices, overlap_score, central_match_coords)`. Solo se usan los `indices`; `overlap_score` y `central_match_coords` no se usan en este loader.
+* **Notas adicionales:** las poses son absolutas por imagen, no relativas al par — `MegaDepthDataset` calcula la pose relativa (`R_rel = R1 @ R0.T`, `t_rel = t1 - R_rel @ t0`) igual que `IMC2025Dataset`, reusando la misma convención mundo→cámara. Como acá K es real (no aproximada), `epipolar_errors_px` da un `mAA`/`accuracy@Npx` confiable y comparable contra la literatura — no aplica la advertencia de no-comparabilidad documentada para IMC2025.
+
+---
+
 ## Mismatched
 
 * **Loader:** *(pendiente de implementar — `MismatchedDataset`)*
