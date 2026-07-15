@@ -8,19 +8,17 @@ benchmarking — no lee `config.toml`, no pasa por
 `utils/geometry.py::compute_fundamental_inliers`, y no debe usarse como
 referencia de métricas comparables entre métodos.
 
-A diferencia de la versión anterior de este archivo, esta NO reimplementa
-la lógica de extracción/matching/RANSAC: llama directamente a
-`run_pipeline.py::run_single_pair`, que es la misma función que usa el
-CLI (`python run_pipeline.py --method ...`). Esto garantiza que los
-números mostrados acá sean idénticos a los que produce el CLI para el
-mismo par de imágenes y la misma configuración — importante dado que
-este framework está pensado para ser auditable (ver docs/methodology.md).
+Esta interfaz NO reimplementa la lógica de extracción/matching/RANSAC:
+llama directamente a `run_pipeline.py::run_single_pair` (modo par
+manual) y a `benchmarks.py::iter_dataset_metrics` (modo dataset), las
+mismas funciones que usan los CLI correspondientes. Esto garantiza que
+los números mostrados acá sean idénticos a los que producen los CLI
+para el mismo input y la misma configuración — importante dado que este
+framework está pensado para ser auditable (ver docs/methodology.md).
 
-Modo dataset (evaluar un dataset completo en vez de un par manual): la
-interfaz ya tiene el selector, pero está deshabilitado. Se implementará
-en una iteración futura, corriendo el benchmark completo (todos los
-pares, métricas agregadas) — no un selector de par individual dentro del
-dataset (decisión ya tomada, ver conversación de diseño).
+Layout dinámico: los campos relevantes para cada modo (par manual vs.
+dataset completo) se muestran u ocultan según el modo elegido, en vez de
+mostrar siempre todos los controles. Ver `_alternar_modo`.
 
 Ejecución:
     python src/gradio_app.py
@@ -234,13 +232,13 @@ def _inferencia_dinov3(img0_rgb: np.ndarray, img1_rgb: np.ndarray):
 
 
 def _inferencia_dataset_stream(metodo_label: str, dataset_label: str):
-    """Generador: yield-ea (imagen, texto_log) después de cada par
-    procesado, y termina con el resumen agregado.
+    """Generador: yield-ea (log_por_par, resumen_final) a medida que se
+    procesa el dataset.
 
-    `imagen` se mantiene en None durante todo el modo dataset — no se
-    visualizan correspondencias acá (decisión de diseño: modo dataset es
-    solo métricas agregadas, ver conversación). El componente de imagen
-    de Gradio simplemente no se actualiza mientras reciba None repetido.
+    `log_por_par` crece con cada par procesado (destinado al textbox de
+    progreso, visible solo en modo dataset). `resumen_final` queda vacío
+    hasta el último yield, cuando se completa con las métricas agregadas
+    (destinado al textbox de resumen final, visible en ambos modos).
     """
     if metodo_label == DINOV3_LABEL:
         raise gr.Error(
@@ -260,7 +258,7 @@ def _inferencia_dataset_stream(metodo_label: str, dataset_label: str):
         f"Configuración: {CONFIG_PATH}",
         "",
     ]
-    yield None, "\n".join(log_lines)
+    yield "\n".join(log_lines), ""
 
     per_pair_metrics = []
     try:
@@ -271,7 +269,7 @@ def _inferencia_dataset_stream(metodo_label: str, dataset_label: str):
                 f"inliers={m['n_inliers']} "
                 f"inlier_ratio={m['inlier_ratio']:.3f}"
             )
-            yield None, "\n".join(log_lines)
+            yield "\n".join(log_lines), ""
     except FileNotFoundError as exc:
         raise gr.Error(
             f"No se pudo leer el dataset '{dataset_label}': {exc}. "
@@ -280,15 +278,22 @@ def _inferencia_dataset_stream(metodo_label: str, dataset_label: str):
 
     if not per_pair_metrics:
         log_lines.append("\nEl dataset no produjo pares — nada que reportar.")
-        yield None, "\n".join(log_lines)
+        yield "\n".join(log_lines), ""
         return
 
     summary = aggregate(per_pair_metrics)
-    log_lines.append("")
-    log_lines.append("===== RESUMEN (promedio sobre todos los pares) =====")
+    resumen_lines = [
+        f"Método  : {metodo_label}",
+        f"Dataset : {dataset_label}",
+        f"Pares evaluados: {summary['n_pairs']}",
+        "",
+    ]
     for key, value in summary.items():
-        log_lines.append(f"{key:24s}: {value}")
-    yield None, "\n".join(log_lines)
+        if key == "n_pairs":
+            continue
+        resumen_lines.append(f"{key:24s}: {value}")
+
+    yield "\n".join(log_lines), "\n".join(resumen_lines)
 
 
 # ---------------------------------------------------------------------
@@ -299,6 +304,12 @@ def _inferencia_dataset_stream(metodo_label: str, dataset_label: str):
 # cualquier rama y trata toda la función como streameable, así que no se
 # puede mezclar `return valor` con `yield valor` en distintas ramas del
 # mismo cuerpo.
+#
+# Devuelve siempre 3 valores, en el orden de `outputs` en boton.click:
+# (imagen_resultado, log_por_par, resumen_final). El modo manual deja
+# `log_por_par` vacío (ese campo no aplica ni se muestra); el modo
+# dataset deja `imagen_resultado` en None (no se visualizan
+# correspondencias en modo dataset, ver conversación de diseño).
 # ---------------------------------------------------------------------
 
 
@@ -310,24 +321,51 @@ def inferencia(
     dataset_label: str,
 ):
     if modo == MODO_DATASET:
-        yield from _inferencia_dataset_stream(metodo_label, dataset_label)
+        for log_por_par, resumen_final in _inferencia_dataset_stream(
+            metodo_label, dataset_label
+        ):
+            yield None, log_por_par, resumen_final
         return
 
     if img0_rgb is None or img1_rgb is None:
         raise gr.Error("Sube dos imágenes antes de ejecutar el emparejamiento.")
 
     if metodo_label == DINOV3_LABEL:
-        yield _inferencia_dinov3(img0_rgb, img1_rgb)
+        imagen, texto = _inferencia_dinov3(img0_rgb, img1_rgb)
+        yield imagen, "", texto
         return
 
     method = METHOD_LABELS[metodo_label]
     img0_path = _guardar_temporal(img0_rgb)
     img1_path = _guardar_temporal(img1_rgb)
     try:
-        yield _inferencia_framework(method, img0_path, img1_path)
+        imagen, texto = _inferencia_framework(method, img0_path, img1_path)
+        yield imagen, "", texto
     finally:
         img0_path.unlink(missing_ok=True)
         img1_path.unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------
+# Visibilidad dinámica de campos según el modo elegido
+#
+# gr.update(visible=...) es la forma estándar de mostrar/ocultar
+# componentes en Gradio sin recargar la página: el handler de un evento
+# (acá, modo_input.change) devuelve un gr.update() por cada componente
+# que quiere modificar, en el mismo orden que la lista `outputs` del
+# `.change(...)`.
+# ---------------------------------------------------------------------
+
+
+def _alternar_modo(modo: str):
+    es_manual = modo == MODO_MANUAL
+    es_dataset = modo == MODO_DATASET
+    return (
+        gr.update(visible=es_manual),  # bloque_imagenes
+        gr.update(visible=es_manual),  # resultado_img
+        gr.update(visible=es_dataset),  # dataset_input
+        gr.update(visible=es_dataset),  # resultado_texto_par
+    )
 
 
 # ---------------------------------------------------------------------
@@ -337,9 +375,8 @@ def inferencia(
 with gr.Blocks(title="Image Matching Delfines") as demo:
     gr.Markdown("""
     # Image Matching Delfines
-    Sube dos fotos de la **misma escena desde ángulos distintos** y el
-    método elegido encontrará los puntos que corresponden al mismo lugar
-    del mundo real.
+    Compará pipelines de image matching sobre un par de imágenes propio,
+    o corré el benchmark completo sobre un dataset soportado.
 
     Las cinco pipelines principales comparten el mismo protocolo de
     evaluación (`configs/config.toml`) y son directamente comparables
@@ -348,36 +385,47 @@ with gr.Blocks(title="Image Matching Delfines") as demo:
     ---
     """)
 
-    with gr.Row():
-        img0_input = gr.Image(label="Imagen 1", type="numpy", height=320)
-        img1_input = gr.Image(label="Imagen 2", type="numpy", height=320)
+    modo_input = gr.Radio(
+        label="Modo",
+        choices=[MODO_MANUAL, MODO_DATASET],
+        value=MODO_MANUAL,
+    )
 
     with gr.Row():
-        modo_input = gr.Radio(
-            label="Modo",
-            choices=[MODO_MANUAL, MODO_DATASET],
-            value=MODO_MANUAL,
-        )
         metodo_input = gr.Dropdown(
             label="Método",
             choices=[*METHOD_LABELS.keys(), DINOV3_LABEL],
             value="ALIKED + LightGlue",
         )
         dataset_input = gr.Dropdown(
-            label="Dataset (solo modo 'Dataset completo')",
+            label="Dataset",
             choices=list(DATASET_LABELS.keys()),
             value="HPatches",
+            visible=False,
         )
+
+    with gr.Row(visible=True) as bloque_imagenes:
+        img0_input = gr.Image(label="Imagen 1", type="numpy", height=320)
+        img1_input = gr.Image(label="Imagen 2", type="numpy", height=320)
 
     boton = gr.Button("Ejecutar", variant="primary", size="lg")
 
     resultado_img = gr.Image(
-        label="Correspondencias encontradas (solo modo par manual)",
+        label="Correspondencias encontradas",
         type="numpy",
         height=400,
+        visible=True,
     )
-    resultado_texto = gr.Textbox(
-        label="Estadísticas / progreso", lines=12, interactive=False
+    resultado_texto_par = gr.Textbox(
+        label="Progreso por par (dataset)",
+        lines=12,
+        interactive=False,
+        visible=False,
+    )
+    resultado_texto_final = gr.Textbox(
+        label="Resumen final",
+        lines=8,
+        interactive=False,
     )
 
     gr.Markdown("""
@@ -390,10 +438,16 @@ with gr.Blocks(title="Image Matching Delfines") as demo:
       mejores resultados.
     """)
 
+    modo_input.change(
+        fn=_alternar_modo,
+        inputs=modo_input,
+        outputs=[bloque_imagenes, resultado_img, dataset_input, resultado_texto_par],
+    )
+
     boton.click(
         fn=inferencia,
         inputs=[modo_input, metodo_input, img0_input, img1_input, dataset_input],
-        outputs=[resultado_img, resultado_texto],
+        outputs=[resultado_img, resultado_texto_par, resultado_texto_final],
     )
 
 
