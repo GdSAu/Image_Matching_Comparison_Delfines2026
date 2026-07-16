@@ -63,6 +63,7 @@ MODO_DATASET = "Dataset completo"
 # (benchmarks.py) para ese caso por ahora.
 DATASET_LABELS = {
     "HPatches": "hpatches",
+    "MegaDepth": "megadepth",
     "IMC 2025": "imc2025",
 }
 

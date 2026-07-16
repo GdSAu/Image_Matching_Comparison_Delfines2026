@@ -88,10 +88,6 @@ def default_data_root(dataset_name: str) -> Path:
 
     Extraído de `main()` para que `gradio_app.py` (modo dataset) pueda
     resolver la misma ruta por defecto sin reimplementar el `match`.
-
-    NOTA: la rama de "imc2025" tiene actualmente un segmento de ruta
-    sospechoso (`","`), heredado del `main()` original — revisar si es
-    un typo antes de confiar en este default para IMC2025.
     """
     project_root = Path(__file__).resolve().parents[1]
     match dataset_name:
@@ -99,6 +95,8 @@ def default_data_root(dataset_name: str) -> Path:
             return project_root / "datasets" / "hpatches" / "hpatches-sequences-release"
         case "imc2025":
             return project_root / "datasets" / "imc2025" / ","
+        case "megadepth":
+            return project_root / "datasets" / "MegaDepth"
         case _:
             raise ValueError(f"Unknown dataset: {dataset_name}")
 
@@ -193,8 +191,9 @@ def evaluate_pair(pipeline, pair, device: torch.device, config) -> dict:
     gt = pair.ground_truth
     if gt.kind == GroundTruthKind.HOMOGRAPHY and n_matches > 0:
         errors = homography_reprojection_errors(matched0, matched1, gt.homography)
+        metrics["MMA@3px"] = float(np.mean(errors <= 3))
+        metrics["MMA@5px"] = float(np.mean(errors <= 5))
         metrics["mAA"] = mean_average_accuracy(errors, HOMOGRAPHY_THRESHOLDS_PX)
-        metrics["accuracy@3px"] = float(np.mean(errors <= 3))
     elif gt.kind == GroundTruthKind.POSE and n_matches > 0:
         errors = epipolar_errors_px(
             matched0,
@@ -206,8 +205,9 @@ def evaluate_pair(pipeline, pair, device: torch.device, config) -> dict:
             # ransac_threshold=config.protocol.essential_ransac_threshold,
             # ransac_confidence=config.protocol.essential_ransac_confidence,
         )
+        metrics["MMA@3px"] = float(np.mean(errors <= 3))
+        metrics["MMA@5px"] = float(np.mean(errors <= 5))
         metrics["mAA"] = mean_average_accuracy(errors, HOMOGRAPHY_THRESHOLDS_PX)
-        metrics["accuracy@3px"] = float(np.mean(errors <= 3))
 
     return metrics
 
@@ -306,7 +306,7 @@ def main():
                 args.data_root = PROJECT_ROOT / "datasets" / "imc2025" / ","
             case "megadepth":
                 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-                args.data.root = PROJECT_ROOT / "datasets" / "MegaDepth"
+                args.data_root = PROJECT_ROOT / "datasets" / "MegaDepth"
             case _:
                 raise ValueError(f"Unknown dataset: {args.dataset}")
 
