@@ -1,12 +1,7 @@
 """
-Interfaz Web Interactiva con Gradio
-====================================
-Envuelve las 5 pipelines del framework de benchmarking (ver
-`run_pipeline.py::PIPELINES`) en una aplicación web, más una opción de
-demo adicional (DINOv3) que NO forma parte del framework de
-benchmarking — no lee `config.toml`, no pasa por
-`utils/geometry.py::compute_fundamental_inliers`, y no debe usarse como
-referencia de métricas comparables entre métodos.
+Este script envuelve las pipelines en una aplicación web
+que cualquier persona puede usar desde el navegador, sin necesidad de
+tocar la terminal.
 
 Esta interfaz NO reimplementa la lógica de extracción/matching/RANSAC:
 llama directamente a `run_pipeline.py::run_single_pair` (modo par
@@ -21,10 +16,9 @@ dataset completo) se muestran u ocultan según el modo elegido, en vez de
 mostrar siempre todos los controles. Ver `_alternar_modo`.
 
 Ejecución:
-    python src/gradio_app.py
+    python src/gradio_interfaz.py
 
-Requisitos adicionales a los del resto del proyecto:
-    pip install gradio
+    Abre http://127.0.0.1:7860 en tu navegador.
 """
 
 import os
