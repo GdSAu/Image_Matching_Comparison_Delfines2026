@@ -83,6 +83,62 @@ def build_dataset(name: str, data_root: Path) -> ImagePairDataset:
     return registry[name](data_root)
 
 
+def default_data_root(dataset_name: str) -> Path:
+    """Resuelve la ruta de datos por defecto para un dataset conocido.
+
+    Extraído de `main()` para que `gradio_app.py` (modo dataset) pueda
+    resolver la misma ruta por defecto sin reimplementar el `match`.
+    """
+    project_root = Path(__file__).resolve().parents[1]
+    match dataset_name:
+        case "hpatches":
+            return project_root / "datasets" / "hpatches" / "hpatches-sequences-release"
+        case "imc2025":
+            return project_root / "datasets" / "imc2025" / ","
+        case "megadepth":
+            return project_root / "datasets" / "MegaDepth"
+        case _:
+            raise ValueError(f"Unknown dataset: {dataset_name}")
+
+
+def iter_dataset_metrics(
+    method: str,
+    dataset_name: str,
+    config,
+    data_root: Path | None = None,
+    device: torch.device | None = None,
+):
+    """Corre `method` sobre todos los pares de `dataset_name`, de a un par
+    por vez (generador).
+
+    Función central compartida por `main()` (más abajo, que la consume
+    para imprimir progreso y acumular resultados para el CSV) y por
+    `gradio_app.py` (que la consume para streamear progreso a la UI).
+    Igual que `run_pipeline.py::run_single_pair`, existe para que no haya
+    dos implementaciones del mismo loop que puedan desincronizarse.
+
+    Es un generador (no devuelve una lista) para que el llamador pueda
+    reportar progreso par por par sin esperar a que termine todo el
+    dataset — importante para datasets grandes corridos desde la UI.
+
+    Yields:
+        dict de métricas por par, igual a lo que devuelve `evaluate_pair`.
+    """
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    torch.manual_seed(config.protocol.random_seed)
+
+    if data_root is None:
+        data_root = default_data_root(dataset_name)
+
+    pipeline = build_pipeline(method, device, config)
+    dataset = build_dataset(dataset_name, Path(data_root))
+
+    for pair in dataset:
+        yield evaluate_pair(pipeline, pair, device, config)
+
+
 def evaluate_pair(pipeline, pair, device: torch.device, config) -> dict:
     """Ejecuta la pipeline en un solo par de imágenes y calcula las métricas
     que el ground truth de ese par soporta.
@@ -135,8 +191,9 @@ def evaluate_pair(pipeline, pair, device: torch.device, config) -> dict:
     gt = pair.ground_truth
     if gt.kind == GroundTruthKind.HOMOGRAPHY and n_matches > 0:
         errors = homography_reprojection_errors(matched0, matched1, gt.homography)
+        metrics["MMA@3px"] = float(np.mean(errors <= 3))
+        metrics["MMA@5px"] = float(np.mean(errors <= 5))
         metrics["mAA"] = mean_average_accuracy(errors, HOMOGRAPHY_THRESHOLDS_PX)
-        metrics["accuracy@3px"] = float(np.mean(errors <= 3))
     elif gt.kind == GroundTruthKind.POSE and n_matches > 0:
         errors = epipolar_errors_px(
             matched0,
@@ -148,8 +205,9 @@ def evaluate_pair(pipeline, pair, device: torch.device, config) -> dict:
             # ransac_threshold=config.protocol.essential_ransac_threshold,
             # ransac_confidence=config.protocol.essential_ransac_confidence,
         )
+        metrics["MMA@3px"] = float(np.mean(errors <= 3))
+        metrics["MMA@5px"] = float(np.mean(errors <= 5))
         metrics["mAA"] = mean_average_accuracy(errors, HOMOGRAPHY_THRESHOLDS_PX)
-        metrics["accuracy@3px"] = float(np.mean(errors <= 3))
 
     return metrics
 
@@ -248,12 +306,9 @@ def main():
                 args.data_root = PROJECT_ROOT / "datasets" / "imc2025" / ","
             case "megadepth":
                 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-                args.data.root = PROJECT_ROOT / "datasets" / "MegaDepth"
+                args.data_root = PROJECT_ROOT / "datasets" / "MegaDepth"
             case _:
                 raise ValueError(f"Unknown dataset: {args.dataset}")
-
-    pipeline = build_pipeline(args.method, device, config)
-    dataset = build_dataset(args.dataset, Path(args.data_root))
 
     output_path = (
         Path(args.output)
@@ -261,9 +316,16 @@ def main():
         else Path("outputs/metrics") / f"{args.dataset}_{args.method}.csv"
     )
 
-    per_pair_metrics = [
-        evaluate_pair(pipeline, pair, device, config) for pair in dataset
-    ]
+    per_pair_metrics = []
+    for m in iter_dataset_metrics(
+        args.method, args.dataset, config, data_root=args.data_root, device=device
+    ):
+        print(
+            f"[{m['pair_id']}] matches={m['n_matches']} "
+            f"inliers={m['n_inliers']} "
+            f"inlier_ratio={m['inlier_ratio']:.3f}"
+        )
+        per_pair_metrics.append(m)
 
     if not per_pair_metrics:
         print("Dataset produced no pairs — nothing to report.")
