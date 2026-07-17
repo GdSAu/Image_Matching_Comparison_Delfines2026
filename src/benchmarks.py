@@ -310,9 +310,6 @@ def main():
             case _:
                 raise ValueError(f"Unknown dataset: {args.dataset}")
 
-    pipeline = build_pipeline(args.method, device, config)
-    dataset = build_dataset(args.dataset, Path(args.data_root))
-
     output_path = (
         Path(args.output)
         if args.output

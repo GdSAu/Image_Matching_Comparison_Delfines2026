@@ -12,11 +12,9 @@ from pipelines.disk_lightglue import DiskLightGlue
 from pipelines.sift_lightglue import SiftLightGlue
 from pipelines.superpoint_lightglue import SuperPointLightGlue
 from pipelines.xfeat_lightglue import XFeatLightGlue
-
 from utils.config import EffectiveConfig, resolve_effective_config
 from utils.geometry import compute_fundamental_inliers
 from utils.image import load_image_rgb
-
 from visualization import visualize_matches
 
 # ---------------------------------------------------------------------
